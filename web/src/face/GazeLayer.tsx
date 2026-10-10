@@ -34,14 +34,21 @@ export default function GazeLayer({ fresh = false, onCalibrated }: { fresh?: boo
     }
   }, [])
 
-  // Recalibrate on request (the settings button) or when the window size changes a lot.
+  // Recalibrate any time: the corner button, the settings button, or the C key.
   useEffect(() => {
     const again = () => {
+      document.querySelectorAll('dialog[open]').forEach((d) => (d as HTMLDialogElement).close()) // top layer would hide the dots
       setPoint(0)
       setCalibrating(true)
     }
+    const key = (e: KeyboardEvent) =>
+      e.isTrusted && (e.key === 'c' || e.key === 'C') && !(e.target instanceof HTMLInputElement) && again()
     window.addEventListener('gaze-recalibrate', again)
-    return () => window.removeEventListener('gaze-recalibrate', again)
+    window.addEventListener('keydown', key)
+    return () => {
+      window.removeEventListener('gaze-recalibrate', again)
+      window.removeEventListener('keydown', key)
+    }
   }, [])
 
   // Calibration: show each dot, collect samples once the eyes have settled on it.
@@ -151,6 +158,11 @@ export default function GazeLayer({ fresh = false, onCalibrated }: { fresh?: boo
             ▼ Scroll down
           </button>
         </>
+      )}
+      {!calibrating && status === 'ready' && (
+        <button type="button" className="gaze-recal" data-gaze-target onClick={() => window.dispatchEvent(new Event('gaze-recalibrate'))}>
+          ◎ Recalibrate
+        </button>
       )}
       {toast && <p className="gaze-toast">{toast}</p>}
     </div>
