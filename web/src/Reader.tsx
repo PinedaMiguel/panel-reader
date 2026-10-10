@@ -71,6 +71,7 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
   // Arriving from the processing view: the first frame must match its last one exactly, so no fade-ins.
   const [arrived, setArrived] = useState(startIndex >= 0)
   const pageRefs = useRef(new Map<number, HTMLElement | null>())
+  const endRef = useRef<HTMLElement | null>(null)
   const refs = useRef<(HTMLElement | null)[]>([])
   const cover = useRef<HTMLElement | null>(null)
   const [playing, setPlaying] = useState(false)
@@ -79,7 +80,6 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
   const [audiobook, setAudiobook] = useState(false)
   const toggleAudiobook = () => setAudiobook((on) => !on)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [finale, setFinale] = useState(false)
   const [settings] = useSettings()
   const vp = useViewport()
   const pageSizes = usePageSizes(comic.pages, knownSizes)
@@ -94,7 +94,7 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   useEffect(() => {
-    if (active === shot.cur || isPageStop(active)) return
+    if (active === shot.cur || isPageStop(active) || active >= panels.length) return
     setArrived(false)
     const d = Math.min(vp.w, vp.h) * 0.6
     const [vx, vy] = direction(entries[shot.cur], entries[active], shot.cur, active)
@@ -123,19 +123,26 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
     )
     if (cover.current) io.observe(cover.current)
     pageRefs.current.forEach((el) => el && io.observe(el))
+    if (endRef.current) io.observe(endRef.current)
     refs.current.forEach((el) => el && io.observe(el))
     return () => io.disconnect()
   }, [panels.length, pageStops])
 
+  // The end screen is the last stop, one past the last panel: reachable by scrolling as well as by playing.
+  const END = panels.length
+  const order = [-1, ...entries.flatMap((_, i) => (pageStops.includes(i - 0.5) ? [i - 0.5, i] : [i])), END]
   const goTo = (i: number) => {
     const el =
       isPageStop(i) ? pageRefs.current.get(i)
       : i < 0 ? cover.current
-      : refs.current[Math.min(panels.length - 1, i)]
-    el?.scrollIntoView({ behavior: 'smooth' })
+      : i >= panels.length ? endRef.current
+      : refs.current[i]
+    // Long jumps (Read again, Home, End) go straight there instead of scrolling past every panel,
+    // which would briefly start each one's audio on the way.
+    const far = Math.abs(order.indexOf(i) - order.indexOf(active)) > 2
+    el?.scrollIntoView({ behavior: far ? 'instant' : 'smooth' })
   }
   // Reading order of the stops: title card, then for each page its whole-page stop and its panels.
-  const order = [-1, ...entries.flatMap((_, i) => (pageStops.includes(i - 0.5) ? [i - 0.5, i] : [i]))]
   const step = (dir: number) => {
     const k = order.indexOf(active)
     goTo(order[Math.max(0, Math.min(order.length - 1, k + dir))])
@@ -195,7 +202,7 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
       else {
         // End of the comic: a beat on the last panel, then pull back to the full page(s).
         setPlaying(false)
-        setTimeout(() => setFinale(true), 600)
+        setTimeout(() => goTo(END), 600)
       }
     },
     () => setPlaying(false),
@@ -250,7 +257,7 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
         goTo(-1)
       } else if (e.key === 'End') {
         e.preventDefault()
-        goTo(panels.length - 1)
+        goTo(END)
       }
     }
     window.addEventListener('keydown', onKey)
@@ -263,7 +270,7 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
   const boxW = Math.min(vp.w - 2 * PAD, MAX_PANEL_W)
   const boxH = vp.h - 2 * PAD - reserved
   const center = { x: vp.w / 2, y: PAD + boxH / 2 }
-  const current = entries[Math.max(active, 0)]
+  const current = entries[Math.min(Math.max(active, 0), panels.length - 1)]
   // The backdrop: every page side by side, framed so the active panel's page sits behind the panel.
   const placements = current?.panel.bbox
     ? framePanel(comic.pages, pageSizes, { pageId: current.page.id, bbox: current.panel.bbox }, boxW, boxH, center)
@@ -303,22 +310,21 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
           })}
         </div>
       )}
-      {finale && lastEntry?.panel.bbox && (
+      {active === END && lastEntry?.panel.bbox && (
         <Finale
           pages={comic.pages}
           sizes={pageSizes}
           last={{ pageId: lastEntry.page.id, bbox: lastEntry.panel.bbox }}
-          onClose={() => setFinale(false)}
+          onClose={() => goTo(panels.length - 1)}
           onRestart={() => {
-            setFinale(false)
-            goTo(0)
+            goTo(order[1]) // the first page, whole, then on into panel 1
             setPlaying(true)
           }}
         />
       )}
 
       <div className="topbar" aria-hidden="true">
-        <span style={{ width: `${(Math.max(0, active + 1) / panels.length) * 100}%` }} />
+        <span style={{ width: `${(Math.min(panels.length, Math.max(0, active + 1)) / panels.length) * 100}%` }} />
       </div>
 
       <section ref={cover} data-index={-1} className="cover" aria-label="Title">
@@ -360,6 +366,9 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
           </section>
         </Fragment>
       ))}
+      <section ref={endRef} data-index={panels.length} className="panel" aria-label="The end">
+        <p className="sr-only">The end. All pages.</p>
+      </section>
 
       <div className="stage" aria-hidden="true" style={{ paddingBottom: PAD + reserved }}>
         {[shot.prev, shot.cur].map((i, n) =>
@@ -444,7 +453,9 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
       )}
 
       <div className="progress" aria-hidden="true">
-        {isPageStop(active)
+        {active >= panels.length
+          ? 'The end'
+          : isPageStop(active)
           ? `Page ${comic.pages.findIndex((p) => p.id === pageOf(active)) + 1}`
           : active < 0 ? 'Cover' : `${active + 1} / ${panels.length}`}
       </div>
