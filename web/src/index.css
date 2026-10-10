@@ -1070,3 +1070,38 @@ html:has(.app) body { background: var(--surface-0); }
   .pageview-img { transition: filter 1.2s ease, border-radius 1.2s ease; }
   .pageview-panel { transition: opacity 0.8s ease 0.4s; }
 }
+
+/* Parallel lanes in the visualization */
+.lanes .lane { margin-bottom: 10px; }
+.lanes .lane p { margin: 0 0 4px; font-size: 0.8rem; color: var(--muted); }
+.lanes .lane p strong { color: var(--fg); }
+.lanes ol { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.lanes li {
+  min-width: 26px; height: 22px; padding: 0 6px; border-radius: 6px;
+  display: grid; place-items: center; font-size: 0.75rem; font-weight: 700;
+  background: var(--surface-0); color: var(--muted);
+}
+.lanes li.start { background: var(--accent); color: #000; }
+.lanes li.done { background: var(--surface-2); color: var(--accent); }
+.ready-bar { position: relative; margin-top: 12px; height: 26px; border-radius: 8px; background: var(--surface-0); overflow: hidden; }
+.ready-bar span { position: absolute; inset: 0 auto 0 0; background: rgb(255 211 0 / 0.35); transition: width 0.4s ease; }
+.ready-bar p { position: relative; margin: 0; line-height: 26px; text-align: center; font-size: 0.8rem; font-weight: 700; }
+@media (prefers-reduced-motion: no-preference) {
+  .lanes li.start { animation: lane-pulse 0.9s ease-in-out infinite alternate; }
+}
+@keyframes lane-pulse { from { opacity: 0.55; } to { opacity: 1; } }
+
+/* Live comic: waiting for a panel's voices, and background progress */
+.waiting-badge {
+  position: fixed; left: 50%; top: 24px; transform: translateX(-50%); z-index: 3; margin: 0;
+  display: flex; align-items: center; gap: 10px; padding: 8px 16px; border-radius: 999px;
+  background: rgb(0 0 0 / 0.85); border: 1px solid var(--accent); font-weight: 600;
+}
+.waiting-badge span { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+.live-chip {
+  position: fixed; right: 16px; top: 16px; z-index: 3; margin: 0; padding: 4px 10px; border-radius: 999px;
+  background: rgb(0 0 0 / 0.7); color: var(--muted); font-size: 0.8rem; font-variant-numeric: tabular-nums;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .waiting-badge span { animation: lane-pulse 0.6s ease-in-out infinite alternate; }
+}

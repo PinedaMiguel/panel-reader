@@ -14,6 +14,7 @@ type Props = {
   startAt?: string // panel id to open on, with no entrance animation (hand-off from the processing view)
   pageSizes?: Record<string, { w: number; h: number }> // known page sizes, so the camera draws on frame one
   onReady?: () => void // first frame painted (the processing view waits for this before fading)
+  liveJob?: string // the comic is still being made: refresh it and wait on panels that aren't voiced yet
 }
 
 // Okabe-Ito: distinguishable with every common colour-vision deficiency. Names are always shown too.
@@ -50,7 +51,7 @@ function usePageSizes(pages: Page[], known: Record<string, { w: number; h: numbe
 
 // One panel per screen. Scroll snapping does the paging; an IntersectionObserver tracks the active
 // panel (-1 = the title card). Behind the panels, the whole page glides like a camera to the active one.
-export default function Reader({ comic, languages, translating, startAt, pageSizes: knownSizes, onReady }: Props) {
+export default function Reader({ comic, languages, translating, startAt, pageSizes: knownSizes, onReady, liveJob }: Props) {
   const entries = useMemo(
     () => comic.pages.flatMap((page) => page.panels.map((panel) => ({ panel, page }))),
     [comic],
@@ -190,11 +191,45 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active])
 
+  // Still being made: refresh the comic in place (same objects, so nothing that's playing restarts) and
+  // know which panels are fully voiced. Playback waits on a panel that isn't, then carries on by itself.
+  const [live, setLive] = useState<{ ready: Set<string>; total: number; done: boolean } | null>(
+    liveJob ? { ready: new Set(), total: panels.length, done: false } : null,
+  )
+  const [, setLiveTick] = useState(0)
+  useEffect(() => {
+    if (!liveJob) return
+    let stop = false
+    ;(async () => {
+      while (!stop) {
+        try {
+          const r = await fetch(`/api/jobs/${liveJob}/comic`)
+          if (r.ok) {
+            const d = await r.json()
+            mergeLive(comic, d.comic)
+            setLive({ ready: new Set(d.ready), total: d.total, done: d.done })
+            setLiveTick((t) => t + 1)
+            if (d.done) return
+          }
+        } catch {
+          // network hiccup: try again on the next tick
+        }
+        await new Promise((r) => setTimeout(r, 1500))
+      }
+    })()
+    return () => {
+      stop = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveJob])
+  const voiced = (p: Panel | undefined) => !p || !live || live.done || live.ready.has(p.id) || (live.ready.size === 0 && !!p.scene)
+  const waiting = playing && active >= 0 && active < panels.length && !voiced(panels[active])
+
   // Playing always turns the pages; audiobook mode only decides whether the narrator speaks.
   const caption = usePanelAudio(
     panels[active],
     comic.characters,
-    playing,
+    playing && !waiting,
     audiobook,
     () => {
       // Next stop: the next panel, or the next page's whole-page view first.
@@ -412,6 +447,17 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
         />
       )}
 
+      {waiting && (
+        <p className="waiting-badge" role="status">
+          <span aria-hidden="true" /> Preparing voices…
+        </p>
+      )}
+      {live && !live.done && (
+        <p className="live-chip" role="status">
+          Preparing {live.ready.size}/{live.total}
+        </p>
+      )}
+
       <div className="controls" role="toolbar" aria-label="Reader controls">
         <button type="button" aria-pressed={playing} onClick={togglePlay}>
           {playing ? 'Pause' : 'Play'} <kbd>P</kbd>
@@ -471,6 +517,41 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
       </div>
     </main>
   )
+}
+
+// Fill a still-being-made comic in place from a fresh copy. Objects keep their identity so playing audio
+// doesn't restart, and links already held are kept (fresh ones are re-signed and would reload images).
+function mergeLive(target: Comic, fresh: Comic) {
+  target.characters.splice(0, target.characters.length, ...fresh.characters)
+  const panelsById = new Map(target.pages.flatMap((p) => p.panels).map((p) => [p.id, p]))
+  for (const fp of fresh.pages) {
+    const tp = target.pages.find((p) => p.id === fp.id)
+    if (!tp) {
+      target.pages.push(fp)
+      continue
+    }
+    tp.image ||= fp.image
+    for (const f of fp.panels) {
+      const t = panelsById.get(f.id)
+      if (!t) {
+        tp.panels.push(f)
+        continue
+      }
+      t.image ||= f.image
+      if (!t.scene && f.scene) {
+        t.scene = f.scene
+        t.characters = f.characters
+        t.emotionLabels = f.emotionLabels
+      }
+      t.narration ||= f.narration
+      t.narrationAudio ||= f.narrationAudio
+      if (t.lines.length !== f.lines.length) t.lines = f.lines
+      else t.lines.forEach((l, i) => (l.audio ||= f.lines[i].audio))
+      const fs = f.sfx ?? []
+      if ((t.sfx ?? []).length !== fs.length) t.sfx = fs
+      else t.sfx?.forEach((x, i) => (x.audio ||= fs[i].audio))
+    }
+  }
 }
 
 const DRIFT_ORIGINS = ['30% 40%', '70% 35%', '50% 65%', '35% 60%', '65% 55%']

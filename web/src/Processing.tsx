@@ -14,6 +14,13 @@ type Script = { panel: string; narration: string; lines: { speaker: string; text
 type Ev = { type: string; [k: string]: any } // eslint-disable-line @typescript-eslint/no-explicit-any
 
 const STEPS = ['Panels', 'Reading order', 'Cast', 'Script', 'Voices', 'Audio'] as const
+type Lane = 'script' | 'voices' | 'narrator'
+const LANES: [Lane, string, string][] = [
+  ['script', 'Gemini', 'script'],
+  ['voices', 'ElevenLabs', 'voices & sound effects'],
+  ['narrator', 'edge-tts', 'narrator'],
+]
+const READY_TO_PLAY = 2 // panels voiced before the reader can start without gaps
 type Step = (typeof STEPS)[number] | 'Ready'
 
 const preload = (src: string) =>
@@ -38,7 +45,7 @@ const PACE: Record<string, [number, number]> = {
   box: [260, 160],
   order: [700, 500],
   member: [320, 220],
-  script: [900, 750],
+  script: [450, 750],
   voices: [1400, 1100],
   audio: [600, 900],
   clip: [60, 0],
@@ -48,7 +55,7 @@ type Props = {
   job: string
   files: File[] // the uploaded pages, if any (a replay gets page images from the events)
   title?: string
-  onFinish: (comic: Comic, startPanel: string, pageSizes: Record<string, { w: number; h: number }>) => void
+  onFinish: (comic: Comic, startPanel: string, pageSizes: Record<string, { w: number; h: number }>, liveJob?: string) => void
   onBack: () => void
   leaving?: boolean // the reader is painted underneath: fade out
 }
@@ -60,7 +67,9 @@ export default function Processing({ job, files, title, onFinish, onBack, leavin
   const [script, setScript] = useState<Script | null>(null)
   const [activePanel, setActivePanel] = useState<string | null>(null)
   const [audioDone, setAudioDone] = useState<Set<string>>(new Set())
-  const [recording, setRecording] = useState(false)
+  // The three parallel lanes (panel id → started/done) and which panels are fully voiced.
+  const [lanes, setLanes] = useState<Record<Lane, Record<string, 'start' | 'done'>>>({ script: {}, voices: {}, narrator: {} })
+  const [ready, setReady] = useState<string[]>([])
   const [step, setStep] = useState<Step>('Panels')
   const [cached, setCached] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -175,21 +184,33 @@ export default function Processing({ job, files, title, onFinish, onBack, leavin
             break
           case 'audio':
             setStep('Audio')
-            setRecording(ev.total > 0)
             setAudioDone(new Set(ev.cached))
             await wait('audio')
             break
           case 'clip':
             setActivePanel(ev.panel)
-            if (ev.done === ev.total) setRecording(false)
             setAudioDone((s) => new Set(s).add(ev.panel))
             await wait('clip')
             break
+          case 'lane':
+            setLanes((l) => ({ ...l, [ev.lane]: { ...l[ev.lane as Lane], [ev.panel]: ev.state } }))
+            if (ev.lane === 'voices' && ev.state === 'start') setStep('Audio')
+            break
+          case 'panel_ready':
+            setReady((r) => (r.includes(ev.panel) ? r : [...r, ev.panel]))
+            setAudioDone((s) => new Set(s).add(ev.panel))
+            break
+          case 'playable': {
+            // Enough is voiced to start without gaps; the rest keeps going while the reader plays.
+            setStep('Ready')
+            es.close()
+            await handOff(ev.comic, ev.start, pagesById, true)
+            return
+          }
           case 'done': {
             setStep('Ready')
-            setRecording(false)
             es.close()
-            await handOff(ev.comic, ev.start, pagesById)
+            await handOff(ev.comic, ev.start, pagesById, false)
             return
           }
           case 'error':
@@ -201,8 +222,11 @@ export default function Processing({ job, files, title, onFinish, onBack, leavin
     })()
 
     // Load the finished comic, then zoom the camera into the first panel and give the reader the stage.
-    async function handOff(comicId: string, start: string, byId: Map<string, PageState>) {
-      const comic: Comic = await (await fetch(`/api/comics/${comicId}`)).json()
+    async function handOff(comicId: string, start: string, byId: Map<string, PageState>, live: boolean) {
+      // Live: the comic as it is now (still filling in); otherwise the finished one from Neon.
+      const comic: Comic = live
+        ? (await (await fetch(`/api/jobs/${job}/comic`)).json()).comic
+        : await (await fetch(`/api/comics/${comicId}`)).json()
       const startPanel = comic.pages.flatMap((p) => p.panels).find((p) => p.id === start)
       const page = [...byId.values()].find((p) => p.boxes.some((b) => b.id === start))
       // Warm everything the reader's first frame draws (fresh signed links), so nothing pops in after the cut.
@@ -222,7 +246,7 @@ export default function Processing({ job, files, title, onFinish, onBack, leavin
         await new Promise((r) => setTimeout(r, skip.current ? 900 : 1900)) // 1.6 s camera move + a beat
       }
       const sizes = Object.fromEntries([...byId.values()].map((p) => [p.id, { w: p.w, h: p.h }]))
-      if (!cancelled) onFinish(comic, start, sizes)
+      if (!cancelled) onFinish(comic, start, sizes, live ? job : undefined)
     }
 
     return () => {
@@ -366,15 +390,30 @@ export default function Processing({ job, files, title, onFinish, onBack, leavin
                 ))}
               </ul>
             </section>
-            {step === 'Audio' && (
-              <section>
-                <h2>Audio</h2>
-                <p className={`wave${recording ? ' live' : ''}`} aria-hidden="true">
-                  {Array.from({ length: 18 }, (_, i) => <span key={i} style={{ animationDelay: `${i * 60}ms` }} />)}
-                </p>
-                <p className="hint">
-                  {audioDone.size} of {strip.length} panels voiced{recording ? ': recording voices (ElevenLabs) and narrator (edge-tts)…' : ''}
-                </p>
+            {Object.values(lanes).some((l) => Object.keys(l).length > 0) && (
+              <section className="lanes" aria-label="Work in progress">
+                <h2>In parallel</h2>
+                {LANES.map(([lane, who, what]) => (
+                  <div key={lane} className="lane">
+                    <p>
+                      <strong>{who}</strong> · {what}
+                    </p>
+                    <ol>
+                      {strip.map((b) => {
+                        const st = lanes[lane][b.id]
+                        return (
+                          <li key={b.id} className={st ?? 'queued'} aria-label={`Panel ${number.get(b.id)}: ${st ?? 'queued'}`}>
+                            {st === 'done' ? '✓' : number.get(b.id)}
+                          </li>
+                        )
+                      })}
+                    </ol>
+                  </div>
+                ))}
+                <div className="ready-bar" aria-label={`Ready to play: ${Math.min(ready.length, READY_TO_PLAY)} of ${READY_TO_PLAY} panels`}>
+                  <span style={{ width: `${(Math.min(ready.length, READY_TO_PLAY) / Math.min(READY_TO_PLAY, Math.max(1, strip.length))) * 100}%` }} />
+                  <p>{ready.length >= Math.min(READY_TO_PLAY, strip.length) && strip.length ? 'Ready to play' : 'Getting ready to play…'}</p>
+                </div>
               </section>
             )}
             {step === 'Script' && !script && <p className="hint">Gemini is writing the script…</p>}

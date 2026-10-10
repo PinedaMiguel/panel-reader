@@ -25,7 +25,12 @@ export default function App() {
   const [translating, setTranslating] = useState<string | null>(null)
   const [reload, setReload] = useState(0)
   // Set when the processing view hands a freshly loaded comic straight to the reader (no reload, no cut).
-  const [handoff, setHandoff] = useState<{ comic: Comic; start: string; sizes: Record<string, { w: number; h: number }> } | null>(null)
+  const [handoff, setHandoff] = useState<{
+    comic: Comic
+    start: string
+    sizes: Record<string, { w: number; h: number }>
+    live?: string // job still finishing the comic in the background
+  } | null>(null)
 
   // The processing visualization sits above everything. When it finishes, the reader mounts underneath
   // and the visualization fades only once the reader has painted its first frame: no black flash.
@@ -50,9 +55,9 @@ export default function App() {
     return () => window.removeEventListener('popstate', onPop)
   }, [])
 
-  const openComic = (c: Comic, start: string, sizes: Record<string, { w: number; h: number }>) => {
+  const openComic = (c: Comic, start: string, sizes: Record<string, { w: number; h: number }>, live?: string) => {
     history.pushState(null, '', `?id=${c.id}`)
-    setHandoff({ comic: c, start, sizes })
+    setHandoff({ comic: c, start, sizes, live })
     setComic(c)
     setRoute({ id: c.id, folder: null })
   }
@@ -138,6 +143,7 @@ export default function App() {
           translating={translating}
           startAt={handoff?.comic.id === comic.id ? handoff.start : undefined}
           pageSizes={handoff?.comic.id === comic.id ? handoff.sizes : undefined}
+          liveJob={handoff?.comic.id === comic.id ? handoff.live : undefined}
           onReady={processing ? uncover : undefined}
         />
       </>

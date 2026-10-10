@@ -1,6 +1,7 @@
 """HTTP API. Run: uv run --env-file ../.env uvicorn api.main:app --port 8000"""
 
 import asyncio
+import copy
 import hashlib
 import json
 import shutil
@@ -12,7 +13,7 @@ from pathlib import Path
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 
-from . import db, panels, pipeline
+from . import db, panels, pipeline, storage
 
 app = FastAPI(title="Panel Reader API")
 pipeline.MEDIA.mkdir(exist_ok=True)
@@ -94,6 +95,30 @@ def replay(comic_id: str):
     if not COMIC_ID.fullmatch(comic_id) or not db.query("select 1 from comics where id = $1", comic_id):
         raise HTTPException(404)
     return _start(uuid.uuid4().hex[:10], lambda job: pipeline.replay(job, comic_id))
+
+
+@app.get("/api/jobs/{job_id}/comic")
+def job_comic(job_id: str):
+    """The comic as it is right now, while it's still being made: the reader starts playing before the
+    job finishes and refreshes this to fill in scripts and audio. Only files already uploaded are signed."""
+    job = jobs.get(job_id)
+    if not job or job.comic is None:
+        raise HTTPException(404)
+    with job.lock:
+        comic = copy.deepcopy(job.comic)
+        uploaded, ready = set(job.uploaded), list(job.ready)
+    sign = lambda k: storage.presign(k) if k and k in uploaded else None  # noqa: E731
+    for page in comic["pages"]:
+        page["image"] = sign(page["image"])
+        for p in page["panels"]:
+            p["image"] = sign(p["image"])
+            p["narrationAudio"] = sign(p.get("narrationAudio"))
+            for line in p.get("lines", []):
+                line["audio"] = sign(line.get("audio"))
+            for fx in p.get("sfx", []):
+                fx["audio"] = sign(fx.get("audio"))
+    total = sum(len(pg["panels"]) for pg in comic["pages"])
+    return {"comic": comic, "ready": ready, "total": total, "done": job.stage in ("done", "error")}
 
 
 @app.get("/api/jobs/{job_id}/events")
