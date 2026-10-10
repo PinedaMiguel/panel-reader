@@ -42,6 +42,44 @@ export default function Welcome() {
     setI(Math.max(0, Math.min(STEPS.length - 1, to)))
   }
 
+  // The guide also speaks each instruction (pre-made ElevenLabs clips in /setup-voice, a voice no comic
+  // character uses). If the browser blocks sound before any interaction, it retries once the camera is
+  // running or on the first click or key press.
+  const [voice, setVoice] = useState(true)
+  const speaker = useRef<HTMLAudioElement | null>(null)
+  const pending = useRef<string | null>(null)
+  const say = (clip: string) => {
+    speaker.current?.pause()
+    pending.current = null
+    if (!voice) return
+    const a = new Audio(`/setup-voice/${clip}.mp3`)
+    speaker.current = a
+    a.play().catch(() => (pending.current = clip))
+  }
+  const retry = () => pending.current && say(pending.current)
+  useEffect(() => {
+    const t = setTimeout(() => say(step.id), 350)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step.id, voice])
+  useEffect(() => {
+    if (success) say('nice')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [success])
+  useEffect(() => {
+    if (camera === 'on') retry()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [camera])
+  useEffect(() => {
+    window.addEventListener('pointerdown', retry)
+    window.addEventListener('keydown', retry)
+    return () => {
+      window.removeEventListener('pointerdown', retry)
+      window.removeEventListener('keydown', retry)
+    }
+  })
+  useEffect(() => () => speaker.current?.pause(), [])
+
   const finish = (faceControl: boolean) => set({ onboarded: true, gaze: faceControl, heart: faceControl })
 
   useEffect(() => {
@@ -140,9 +178,14 @@ export default function Welcome() {
               <li key={s.id} className={k < i ? 'done' : k === i ? 'now' : ''} />
             ))}
           </ol>
-          <button type="button" className="welcome-fallback" onClick={() => finish(false)}>
-            Use mouse &amp; keyboard
-          </button>
+          <span className="welcome-top-actions">
+            <button type="button" className="welcome-fallback" aria-pressed={voice} onClick={() => setVoice((v) => !v)}>
+              {voice ? 'Voice on' : 'Voice off'}
+            </button>
+            <button type="button" className="welcome-fallback" onClick={() => finish(false)}>
+              Use mouse &amp; keyboard
+            </button>
+          </span>
         </header>
 
         <div className="welcome-stage">

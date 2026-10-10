@@ -1239,6 +1239,7 @@ body:has(.reader) .switch-legend, body:has(.welcome) .switch-legend, body:has(.l
   min-height: 44px; padding: 0 18px; border-radius: 99px; cursor: pointer; font: 600 0.95rem var(--font);
   border: 1px solid var(--hairline); background: rgb(0 0 0 / 0.5); color: var(--muted); transition: color 0.2s, border-color 0.2s;
 }
+.welcome-top-actions { display: flex; gap: 8px; }
 .welcome-fallback:hover { color: var(--fg); border-color: var(--accent); }
 
 .welcome-stage {
