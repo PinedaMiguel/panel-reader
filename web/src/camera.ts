@@ -60,3 +60,25 @@ export function framePanel(
   }
   return out
 }
+
+// Whole pages side by side at one height, with `centerId` centred on screen: the "page view"
+// (before panel 1, the end of the visualization, the end of the comic).
+export function pageStrip(
+  pages: Page[],
+  sizes: Record<string, Size>,
+  centerId: string,
+  vp: { w: number; h: number },
+  marginY = 64,
+  gap = 56,
+): Map<string, Placement> {
+  const out = new Map<string, Placement>()
+  const shown = pages.filter((p) => sizes[p.id])
+  const ci = shown.findIndex((p) => p.id === centerId)
+  if (ci < 0) return out
+  const height = vp.h - 2 * marginY
+  const widths = shown.map((p) => (sizes[p.id].w / sizes[p.id].h) * height)
+  const lefts = widths.map((_, i) => widths.slice(0, i).reduce((a, w) => a + w + gap, 0))
+  const shift = vp.w / 2 - (lefts[ci] + widths[ci] / 2)
+  shown.forEach((p, i) => out.set(p.id, { x: shift + lefts[i], y: marginY, s: height / sizes[p.id].h }))
+  return out
+}

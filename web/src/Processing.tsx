@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
-import { framePanel } from './camera'
+import { pageStrip } from './camera'
 import type { Comic } from './types'
 
 // Full-screen visualization of the pipeline: the page, Magi's panel boxes in reading order, the crops
@@ -31,8 +31,6 @@ const padded = (b: Box['bbox'], p: { w: number; h: number }): Box['bbox'] => [
   Math.max(0, b[0] - CROP_PAD), Math.max(0, b[1] - CROP_PAD), Math.min(p.w, b[2] + CROP_PAD), Math.min(p.h, b[3] + CROP_PAD),
 ]
 
-const PAD = 16
-const MAX_PANEL_W = 900
 
 // Minimum on-screen time per event (ms): [live, cached replay]. Live runs are paced by the models anyway.
 const PACE: Record<string, [number, number]> = {
@@ -242,21 +240,19 @@ export default function Processing({ job, files, title, onFinish, onBack, leavin
   // Page placement: fitted into the stage area, or (during the hand-off) the reader's camera position.
   const area = { x: 24, y: 88, w: vp.w - (vp.w > 900 ? 420 : 48), h: vp.h - (vp.w > 900 ? 88 + 150 : 88 + 330) }
   const currentIndex = Math.max(0, pages.findIndex((p) => p.id === current))
-  // During the zoom every page takes its place in the reader's page strip, so the cut is invisible.
-  const pageStrip = zoom
-    ? framePanel(
+  // Hand-off: the pages settle into the reader's whole-page view (start page centred), so the cut is invisible.
+  const settled = zoom
+    ? pageStrip(
         pages.map((p) => ({ id: p.id, panels: [] })),
         Object.fromEntries(pages.map((p) => [p.id, { w: p.w, h: p.h }])),
-        { pageId: zoom.page.id, bbox: zoom.box.bbox },
-        Math.min(vp.w - 2 * PAD, MAX_PANEL_W),
-        vp.h - 2 * PAD,
-        { x: vp.w / 2, y: vp.h / 2 },
+        zoom.page.id,
+        vp,
       )
     : null
   const place = (p: PageState, k: number): CSSProperties => {
-    const at = pageStrip?.get(p.id)
+    const at = settled?.get(p.id)
     if (at) {
-      return { transform: `translate(${at.x}px, ${at.y}px) scale(${at.s})`, '--blur': `${7 / at.s}px` } as CSSProperties
+      return { transform: `translate(${at.x}px, ${at.y}px) scale(${at.s})`, opacity: p.id === zoom!.page.id ? 1 : 0.45 }
     }
     // Pages sit side by side; the current one is centred and its neighbours wait just off-stage.
     const s = Math.min(area.w / p.w, area.h / p.h)

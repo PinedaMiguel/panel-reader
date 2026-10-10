@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import Finale from './Finale'
+import PageView from './PageView'
 import SettingsPanel from './SettingsPanel'
 import { MAX_PANEL_W, PAD, framePanel } from './camera'
 import { useSettings } from './settings'
@@ -19,6 +20,8 @@ type Props = {
 const SPEAKER_COLORS = ['#E69F00', '#56B4E9', '#009E73', '#F0E442', '#CC79A7', '#D55E00', '#0072B2']
 
 const CAPTION_SPACE = 150
+const OVERVIEW = -0.5 // the whole-page stop between the title card (-1) and panel 1 (0)
+const OVERVIEW_HOLD_MS = 2500 // when playing, how long the whole page shows before zooming in
 const BLEED = 40 // .camera extends this far past the viewport so its blur has no hard edge
 
 function useViewport() {
@@ -55,9 +58,17 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
   )
   const panels = entries.map((e) => e.panel)
   const startIndex = startAt ? entries.findIndex((e) => e.panel.id === startAt) : -1
-  const [active, setActive] = useState(startIndex)
+  const hasOverview = !!entries[0]?.page.image
+  // Arriving from the processing view lands on the whole start page, which then zooms into its panel.
+  const [active, setActive] = useState(startIndex >= 0 ? (hasOverview ? OVERVIEW : startIndex) : -1)
   // Arriving from the processing view: the first frame must match its last one exactly, so no fade-ins.
   const [arrived, setArrived] = useState(startIndex >= 0)
+  const overview = useRef<HTMLElement | null>(null)
+  // Which page the whole-page stop shows, and which panel it zooms into.
+  const overviewTarget = useRef({
+    centerId: (entries[startIndex] ?? entries[0])?.page.id ?? '',
+    focusIndex: Math.max(startIndex, 0),
+  })
   const refs = useRef<(HTMLElement | null)[]>([])
   const cover = useRef<HTMLElement | null>(null)
   const [playing, setPlaying] = useState(false)
@@ -72,13 +83,13 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
   const pageSizes = usePageSizes(comic.pages, knownSizes)
 
   // The visible "shot": incoming panel plus the outgoing one, moving the way the panels sit on the page.
-  const [shot, setShot] = useState<Shot>({ cur: startIndex, prev: null, dx: 0, dy: 0 })
+  const [shot, setShot] = useState<Shot>({ cur: hasOverview ? -1 : startIndex, prev: null, dx: 0, dy: 0 })
   useLayoutEffect(() => {
-    if (startIndex >= 0) refs.current[startIndex]?.scrollIntoView({ behavior: 'instant' })
+    if (startIndex >= 0) (hasOverview ? overview.current : refs.current[startIndex])?.scrollIntoView({ behavior: 'instant' })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   useEffect(() => {
-    if (active === shot.cur) return
+    if (active === shot.cur || active === OVERVIEW) return
     setArrived(false)
     const d = Math.min(vp.w, vp.h) * 0.6
     const [vx, vy] = direction(entries[shot.cur], entries[active], shot.cur, active)
@@ -106,20 +117,68 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
       { threshold: 0.6 },
     )
     if (cover.current) io.observe(cover.current)
+    if (overview.current) io.observe(overview.current)
     refs.current.forEach((el) => el && io.observe(el))
     return () => io.disconnect()
   }, [panels.length])
 
   const goTo = (i: number) => {
-    const clamped = Math.max(-1, Math.min(panels.length - 1, i))
-    const el = clamped < 0 ? cover.current : refs.current[clamped]
+    const el =
+      i === OVERVIEW && hasOverview ? overview.current
+      : i < 0 ? cover.current
+      : refs.current[Math.min(panels.length - 1, i)]
     el?.scrollIntoView({ behavior: 'smooth' })
+  }
+  // Reading order of the stops: title card, whole first page, then each panel.
+  const step = (dir: number) => {
+    const order = [-1, ...(hasOverview ? [OVERVIEW] : []), ...panels.map((_, i) => i)]
+    const k = order.indexOf(active)
+    goTo(order[Math.max(0, Math.min(order.length - 1, k + dir))])
   }
 
   const togglePlay = () => {
-    if (!playing && active < 0) goTo(0) // start from the first panel, not the title card
+    if (!playing && active === -1) goTo(hasOverview ? OVERVIEW : 0) // start from the first page, not the title card
     setPlaying((v) => !v)
   }
+
+  // Playing on the whole-page stop: let the page be seen for a moment, then zoom into its panel.
+  useEffect(() => {
+    if (!playing || active !== OVERVIEW) return
+    const t = setTimeout(() => goTo(overviewTarget.current.focusIndex), OVERVIEW_HOLD_MS)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playing, active])
+
+  // The whole-page view and its camera moves: zoom in from the page to a panel, out from a panel to the page.
+  const [pv, setPv] = useState<{ zoomed: boolean; centerId: string; focusIndex: number } | null>(
+    active === OVERVIEW ? { zoomed: false, ...overviewTarget.current } : null,
+  )
+  const prevActive = useRef(active)
+  useEffect(() => {
+    const prev = prevActive.current
+    prevActive.current = active
+    if (!hasOverview || prev === active) return
+    if (active === OVERVIEW) {
+      const target = overviewTarget.current
+      if (prev < 0) return setPv({ zoomed: false, ...target })
+      // Back from a panel: start framed on it, then pull out to the whole page.
+      setPv({ zoomed: true, centerId: target.centerId, focusIndex: prev })
+      const r = requestAnimationFrame(() =>
+        requestAnimationFrame(() => setPv((p) => p && { ...p, zoomed: false, focusIndex: target.focusIndex })),
+      )
+      return () => cancelAnimationFrame(r)
+    }
+    if (prev === OVERVIEW && active >= 0) {
+      setPv((p) => ({ centerId: p?.centerId ?? entries[active].page.id, focusIndex: active, zoomed: true }))
+      const t = setTimeout(() => {
+        setPv(null) // the reader underneath now shows exactly this frame
+        overviewTarget.current = { centerId: entries[0].page.id, focusIndex: 0 }
+      }, 1700)
+      return () => clearTimeout(t)
+    }
+    setPv(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active])
 
   // Playing always turns the pages; audiobook mode only decides whether the narrator speaks.
   const caption = usePanelAudio(
@@ -137,6 +196,17 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
     },
     () => setPlaying(false),
   )
+
+  // Arriving on the whole-page view: tell the processing view once the page is painted, so it can fade.
+  useEffect(() => {
+    if (startIndex < 0 || !hasOverview || !onReady) return
+    const center = comic.pages.find((p) => p.id === overviewTarget.current.centerId)
+    if (!center?.image) return onReady()
+    const img = new Image()
+    img.onload = img.onerror = () => requestAnimationFrame(() => requestAnimationFrame(() => onReady()))
+    img.src = center.image
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Arriving from the processing view: start playing as the curtain lifts. The click that started
   // the upload/replay was in this same page session, so the browser allows the audio.
@@ -170,7 +240,7 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
       }
       if (e.key in keys) {
         e.preventDefault()
-        goTo(active + (e.shiftKey && e.key === ' ' ? -1 : keys[e.key]))
+        step(e.shiftKey && e.key === ' ' ? -1 : keys[e.key])
       } else if (e.key === 'Home') {
         e.preventDefault()
         goTo(-1)
@@ -195,6 +265,9 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
     ? framePanel(comic.pages, pageSizes, { pageId: current.page.id, bbox: current.panel.bbox }, boxW, boxH, center)
     : new Map()
   const lastEntry = entries[entries.length - 1]
+  const pvFocus = pv && entries[pv.focusIndex]?.panel.bbox
+    ? { pageId: entries[pv.focusIndex].page.id, bbox: entries[pv.focusIndex].panel.bbox! }
+    : null
 
   const first = entries[0]
   const coverImage = first?.page.image || first?.panel.image
@@ -241,7 +314,7 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
       )}
 
       <div className="topbar" aria-hidden="true">
-        <span style={{ width: `${((active + 1) / panels.length) * 100}%` }} />
+        <span style={{ width: `${(Math.max(0, active + 1) / panels.length) * 100}%` }} />
       </div>
 
       <section ref={cover} data-index={-1} className="cover" aria-label="Title">
@@ -259,6 +332,12 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
           </p>
         </div>
       </section>
+
+      {hasOverview && (
+        <section ref={overview} data-index={OVERVIEW} className="panel" aria-label="Whole first page">
+          <p className="sr-only">The whole first page.</p>
+        </section>
+      )}
 
       {/* Scroll track: one snap point per panel. What you see is drawn on the stage below. */}
       {entries.map(({ panel }, i) => (
@@ -301,6 +380,20 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
         )}
       </div>
 
+      {pv && (
+        <PageView
+          pages={comic.pages}
+          sizes={pageSizes}
+          centerId={pv.centerId}
+          focus={pvFocus}
+          zoomed={pv.zoomed}
+          boxW={boxW}
+          boxH={boxH}
+          center={center}
+          vp={vp}
+        />
+      )}
+
       <div className="controls" role="toolbar" aria-label="Reader controls">
         <button type="button" aria-pressed={playing} onClick={togglePlay}>
           {playing ? 'Pause' : 'Play'} <kbd>P</kbd>
@@ -342,7 +435,7 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
       )}
 
       <div className="progress" aria-hidden="true">
-        {active < 0 ? 'Cover' : `${active + 1} / ${panels.length}`}
+        {active === OVERVIEW ? 'Page 1' : active < 0 ? 'Cover' : `${active + 1} / ${panels.length}`}
       </div>
       <div className="sr-only" aria-live="polite">
         {active >= 0 && (
