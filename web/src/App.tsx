@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import ColorFilters from './ColorFilters'
 import Home, { type ProcessJob } from './Home'
 import Processing from './Processing'
-import GazeLayer from './face/GazeLayer'
+import SwitchLayer from './face/SwitchLayer'
 import Welcome from './face/Welcome'
 import Reader from './Reader'
 import { useSettings } from './settings'
@@ -154,7 +154,7 @@ export default function App() {
     <>
       {page}
       {overlay}
-      {settings.onboarded ? settings.gaze && <GazeLayer /> : <Welcome />}
+      {settings.onboarded ? settings.gaze && <SwitchLayer /> : <Welcome />}
     </>
   )
 }

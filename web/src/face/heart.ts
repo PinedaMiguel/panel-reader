@@ -11,7 +11,7 @@ export type Hearts = Record<string, { score: number; updated: number }>
 
 export function loadHearts(): Hearts {
   try {
-    return JSON.parse(localStorage.getItem(KEY) ?? '{}')
+    return JSON.parse(sessionStorage.getItem(KEY) ?? '{}')
   } catch {
     return {}
   }
@@ -21,7 +21,7 @@ function saveHeart(comicId: string, score: number) {
   try {
     const all = loadHearts()
     all[comicId] = { score: Math.round(score), updated: Date.now() }
-    localStorage.setItem(KEY, JSON.stringify(all))
+    sessionStorage.setItem(KEY, JSON.stringify(all))
   } catch {
     // private mode: the score lives for this visit only
   }
@@ -87,7 +87,7 @@ export function useHeart(comicId: string, enabled: boolean) {
         saveHeart(comicId, value.current)
       }
     })
-    const offGesture = onGesture((g) => alive && bump(g === 'nod' ? GESTURE : -GESTURE))
+    const offGesture = onGesture((g) => alive && (g === 'nod' || g === 'shake') && bump(g === 'nod' ? GESTURE : -GESTURE))
     startFace().catch(() => alive && setStatus('denied'))
 
     return () => {

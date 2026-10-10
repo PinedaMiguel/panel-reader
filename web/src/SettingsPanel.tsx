@@ -89,13 +89,8 @@ export default function SettingsPanel({ open, onClose, languages, translating }:
         </label>
         <label className="check">
           <input type="checkbox" checked={s.gaze} onChange={(e) => set({ gaze: e.target.checked })} />
-          Hands-free: control with my eyes and head
+          Hands-free: turn, nod and shake my head
         </label>
-        {s.gaze && (
-          <button type="button" className="recalibrate" onClick={() => window.dispatchEvent(new Event('gaze-recalibrate'))}>
-            Recalibrate eyes
-          </button>
-        )}
         <button type="button" className="recalibrate" onClick={() => (onClose(), set({ onboarded: false }))}>
           Run face setup again
         </button>
@@ -108,7 +103,7 @@ export default function SettingsPanel({ open, onClose, languages, translating }:
   )
 }
 
-// Buttons instead of a <select>: a native dropdown can't be opened or picked from by eye gaze.
+// Buttons instead of a <select>: a native dropdown can't be opened or picked from by head gestures.
 function Choice<T extends string>({ label, value, options, onPick }: {
   label: string
   value: T

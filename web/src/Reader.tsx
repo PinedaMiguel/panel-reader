@@ -267,6 +267,10 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (settingsOpen || e.target instanceof HTMLInputElement || e.metaKey || e.ctrlKey || e.altKey) return
+      if (e.key === 'Escape') {
+        location.assign('./') // back to the shows
+        return
+      }
       if (e.key === 's' || e.key === 'S') {
         setSettingsOpen(true)
         return
@@ -449,17 +453,6 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
       )}
 
       {settings.heart && <HeartMeter comicId={comic.id} />}
-      {settings.gaze && (
-        // Hands-free: look at an edge (and hold) to turn the panel.
-        <>
-          <button type="button" className="gaze-edge left" data-gaze-target onClick={() => step(-1)} aria-label="Previous">
-            ‹
-          </button>
-          <button type="button" className="gaze-edge right" data-gaze-target onClick={() => step(1)} aria-label="Next">
-            ›
-          </button>
-        </>
-      )}
 
       {waiting && (
         <p className="waiting-badge" role="status">

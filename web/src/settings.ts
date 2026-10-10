@@ -11,11 +11,11 @@ export type Settings = {
   captions: boolean
   lang: string // 'original' or a language code
   heart: boolean // camera: passive enjoyment meter while reading
-  gaze: boolean // camera: hands-free control with eye gaze + head gestures
+  gaze: boolean // camera: hands-free control by head turns, nods and shakes
   onboarded: boolean // finished (or skipped) the first-visit face setup
 }
 
-// Face control (gaze + head gestures, with the heart meter) is the primary way in, set up on the first
+// Face control (head gestures, with the heart meter) is the primary way in, set up on the first
 // visit; mouse and keyboard stay as the fallback. Every other accessibility feature is opt-in.
 export const DEFAULTS: Settings = {
   font: 'default',
@@ -30,11 +30,19 @@ export const DEFAULTS: Settings = {
 }
 
 const KEY = 'panel-reader-settings'
+
+// Built for a pitch, not daily use: settings, setup and heart scores live in sessionStorage, so moving
+// between pages keeps them and a refresh starts fresh from the guide. Runs here, before anything is read.
+try {
+  if ((performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined)?.type === 'reload') sessionStorage.clear()
+} catch {
+  // storage blocked: nothing persisted anyway
+}
 const EVENT = 'panel-reader-settings'
 
 function load(): Settings {
   try {
-    return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') }
+    return { ...DEFAULTS, ...JSON.parse(sessionStorage.getItem(KEY) ?? '{}') }
   } catch {
     return DEFAULTS
   }
@@ -63,7 +71,7 @@ export function useSettings(): [Settings, (patch: Partial<Settings>) => void] {
     const next = { ...current, ...patch }
     current = next
     try {
-      localStorage.setItem(KEY, JSON.stringify(next))
+      sessionStorage.setItem(KEY, JSON.stringify(next))
     } catch {
       // private mode: settings still apply for this visit
     }

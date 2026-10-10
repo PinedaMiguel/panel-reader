@@ -2,7 +2,7 @@ import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision'
 
 // On-device face sensing (MediaPipe Face Landmarker, served from /mediapipe): no video leaves the browser.
 // Each camera frame becomes a FaceFrame of head pose, eye direction and expression scores, which the heart
-// meter (passive enjoyment) and the gaze pointer (hands-free control) build on.
+// meter (passive enjoyment) and hands-free control (head turns, nods and shakes) build on.
 
 export type FaceFrame = {
   t: number // ms
@@ -16,7 +16,7 @@ export type FaceFrame = {
   sneer: number // 0..1
 }
 
-export type Gesture = 'nod' | 'shake'
+export type Gesture = 'nod' | 'shake' | 'left' | 'right' // left/right: the user's own left/right
 
 type Listener = (f: FaceFrame) => void
 type GestureListener = (g: Gesture) => void
@@ -42,6 +42,9 @@ export function onGesture(fn: GestureListener) {
   gestureListeners.add(fn)
   return () => gestureListeners.delete(fn)
 }
+
+// Dev only: fake a gesture from the console or a test (`__gesture('nod')`).
+if (import.meta.env.DEV) Object.assign(window, { __gesture: (g: Gesture) => gestureListeners.forEach((fn) => fn(g)) })
 
 // Reference-counted: the camera runs while any feature (heart meter, gaze control) needs it.
 export async function startFace(): Promise<void> {
@@ -145,9 +148,10 @@ const history: FaceFrame[] = []
 let cooldownUntil = 0
 function detectGestures(f: FaceFrame) {
   if (!f.found) return
+  detectTurn(f)
   history.push(f)
   while (history.length && f.t - history[0].t > WINDOW_MS) history.shift()
-  if (f.t < cooldownUntil || history.length < 8) return
+  if (f.t < cooldownUntil || f.t - lastTurn < WINDOW_MS || history.length < 8) return // turning back isn't a shake
   const swings = (key: 'yaw' | 'pitch') => {
     const v = history.map((h) => h[key])
     const range = Math.max(...v) - Math.min(...v)
@@ -170,6 +174,31 @@ function detectGestures(f: FaceFrame) {
   if (g) {
     cooldownUntil = f.t + 1300
     history.length = 0
+    turnSince = 0
     gestureListeners.forEach((fn) => fn(g!))
   }
+}
+
+// Turn = head turned past TURN_DEG from where it usually rests, and held. A shake swings back too fast to
+// count. Holding repeats, so you can move several steps without turning back and forth.
+const TURN_DEG = 16
+const HOLD_MS = 350
+const REPEAT_MS = 700
+let restYaw: number | null = null
+let turnSince = 0
+let turnFired = 0
+let lastTurn = 0
+function detectTurn(f: FaceFrame) {
+  restYaw ??= f.yaw
+  const off = f.yaw - restYaw
+  if (Math.abs(off) < TURN_DEG / 2) restYaw += off * 0.02 // follow slow posture changes while facing forward
+  if (Math.abs(off) < TURN_DEG || f.t < cooldownUntil) {
+    turnSince = turnFired = 0
+    return
+  }
+  turnSince ||= f.t
+  if (f.t - turnSince < HOLD_MS || (turnFired && f.t - turnFired < REPEAT_MS)) return
+  turnFired = lastTurn = f.t
+  const g: Gesture = off > 0 ? 'left' : 'right' // yaw + = turned to the user's left
+  gestureListeners.forEach((fn) => fn(g))
 }

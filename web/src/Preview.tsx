@@ -19,7 +19,7 @@ type PreviewData = {
 
 const SHOT_MS = 2800
 
-export default function Preview({ id, title, onClose }: { id: string; title: string; onClose: () => void }) {
+export default function Preview({ id, title, onClose, onReplay }: { id: string; title: string; onClose: () => void; onReplay: () => void }) {
   const ref = useRef<HTMLDialogElement>(null)
   const audio = useRef<HTMLAudioElement | null>(null)
   const [data, setData] = useState<PreviewData | null>(null)
@@ -113,6 +113,7 @@ export default function Preview({ id, title, onClose }: { id: string; title: str
         <div className="preview-actions">
           <a className="btn btn-accent" href={`?id=${id}`}>▶ Play</a>
           <form method="dialog">
+            <button type="submit" className="btn" onClick={onReplay}>How it was read</button>
             <button type="submit" className="btn">Close</button>
           </form>
         </div>
