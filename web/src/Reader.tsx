@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import Finale from './Finale'
+import HeartMeter from './face/HeartMeter'
 import PageView from './PageView'
 import SettingsPanel from './SettingsPanel'
 import { MAX_PANEL_W, PAD, framePanel } from './camera'
@@ -446,6 +447,8 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
           vp={vp}
         />
       )}
+
+      {settings.heart && <HeartMeter comicId={comic.id} />}
 
       {waiting && (
         <p className="waiting-badge" role="status">

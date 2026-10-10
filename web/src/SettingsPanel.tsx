@@ -99,6 +99,18 @@ export default function SettingsPanel({ open, onClose, languages, translating }:
         Show emotion labels on panels
       </label>
 
+      <fieldset className="camera-opts">
+        <legend>Camera features (on this device only)</legend>
+        <label className="check">
+          <input type="checkbox" checked={s.heart} onChange={(e) => set({ heart: e.target.checked })} />
+          Heart meter: learn what I enjoy from my expressions
+        </label>
+        <label className="check">
+          <input type="checkbox" checked={s.gaze} onChange={(e) => set({ gaze: e.target.checked })} />
+          Hands-free: control with my eyes and head
+        </label>
+      </fieldset>
+
       <form method="dialog">
         <button type="submit">Done</button>
       </form>

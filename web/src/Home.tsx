@@ -102,6 +102,8 @@ export default function Home({ onProcess }: { onProcess: (job: ProcessJob) => vo
     ['Large captions', settings.textScale >= 1.4, () => set({ textScale: settings.textScale >= 1.4 ? 1 : 1.5 })],
     ['Colour-blind correction', settings.color === 'deuteranopia', () => set({ color: settings.color === 'deuteranopia' ? 'none' : 'deuteranopia' })],
     ['Emotion labels', settings.emotions, () => set({ emotions: !settings.emotions })],
+    ['Hands-free (eyes & head)', settings.gaze, () => set({ gaze: !settings.gaze })],
+    ['Heart meter', settings.heart, () => set({ heart: !settings.heart })],
   ]
 
   return (

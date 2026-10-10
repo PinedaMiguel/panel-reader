@@ -1105,3 +1105,21 @@ html:has(.app) body { background: var(--surface-0); }
 @media (prefers-reduced-motion: no-preference) {
   .waiting-badge span { animation: lane-pulse 0.6s ease-in-out infinite alternate; }
 }
+
+/* Heart meter */
+.heart-meter {
+  position: fixed; left: 16px; top: 16px; z-index: 3; display: flex; align-items: center; gap: 8px;
+  padding: 6px 12px; border-radius: 999px; background: rgb(0 0 0 / 0.75); border: 1px solid rgb(255 255 255 / 0.15);
+}
+.heart-icon { color: #ff4d6d; font-size: 1.2rem; line-height: 1; }
+.heart-bar { width: 120px; height: 8px; border-radius: 4px; background: rgb(255 255 255 / 0.15); overflow: hidden; }
+.heart-bar span { display: block; height: 100%; background: linear-gradient(90deg, #ff4d6d, #ff9a3c); }
+.heart-label { font-size: 0.8rem; font-variant-numeric: tabular-nums; color: var(--muted); min-width: 3ch; }
+.camera-opts { border: 1px solid var(--hairline, rgb(255 255 255 / 0.1)); border-radius: 12px; padding: 8px 12px 0; margin: 0 0 16px; }
+.camera-opts legend { padding: 0 6px; font-size: 0.85rem; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) {
+  .heart-bar span { transition: width 0.25s ease; }
+  .heart-meter.up .heart-icon { animation: heart-beat 0.6s ease infinite; }
+  .heart-meter.down .heart-icon { opacity: 0.6; }
+}
+@keyframes heart-beat { 0%, 100% { transform: scale(1); } 40% { transform: scale(1.3); } }

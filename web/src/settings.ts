@@ -10,6 +10,8 @@ export type Settings = {
   emotions: boolean // emotion labels over each panel
   captions: boolean
   lang: string // 'original' or a language code
+  heart: boolean // camera: passive enjoyment meter while reading
+  gaze: boolean // camera: hands-free control with eye gaze + head gestures
 }
 
 // Every accessibility feature is opt-in: the defaults are the plain reading experience.
@@ -20,6 +22,8 @@ export const DEFAULTS: Settings = {
   emotions: false,
   captions: false,
   lang: 'original',
+  heart: false,
+  gaze: false,
 }
 
 const KEY = 'panel-reader-settings'
