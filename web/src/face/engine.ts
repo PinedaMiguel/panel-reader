@@ -240,19 +240,35 @@ function detectTurn(f: FaceFrame) {
   gestureListeners.forEach((fn) => fn(g))
 }
 
-// Wink = one eye shut while the other stays open, held briefly. A blink shuts both, so it never counts.
-const WINK_MS = 250
+// Wink = one eye closes clearly more than the other, held briefly. Each eye is measured against its own
+// resting level (some faces rest with one eye lower), and the open eye may squint along, as it does in a
+// real wink: it only has to move much less than the winking one. A blink moves both alike.
+const WINK_MS = 150
+const WINK_MIN = 0.35 // the winking eye closes at least this far past its rest
+const WINK_RATIO = 1.4 // ...and this many times further than the other eye
+const rest = { l: 0.1, r: 0.1 }
 let winkSince = 0
 let winkFired = 0
+// 0..1+, where 1 counts as a wink (also drives the setup's live meter).
+export function winkLevel(f: FaceFrame) {
+  const dl = f.blink.l - rest.l
+  const dr = f.blink.r - rest.r
+  const big = Math.max(dl, dr)
+  const small = Math.max(0.02, Math.min(dl, dr))
+  return Math.min(big / WINK_MIN, big / (WINK_RATIO * small))
+}
 function detectWink(f: FaceFrame) {
   const { l, r } = f.blink
-  const wink = (l > 0.55 && r < 0.25) || (r > 0.55 && l < 0.25)
-  if (!wink) {
+  if (Math.max(l, r) < 0.3) {
+    rest.l += (l - rest.l) * 0.03 // both open: learn each eye's resting level
+    rest.r += (r - rest.r) * 0.03
+  }
+  if (winkLevel(f) < 1) {
     winkSince = 0
     return
   }
   winkSince ||= f.t
-  if (f.t - winkSince < WINK_MS || f.t - winkFired < 1500) return
+  if (f.t - winkSince < WINK_MS || f.t - winkFired < 1200) return
   winkFired = f.t
   gestureListeners.forEach((fn) => fn('wink'))
 }

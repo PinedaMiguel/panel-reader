@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useSettings } from '../settings'
-import { cameraStream, onFrame, onGesture, startFace, stopFace, type Gesture } from './engine'
+import { cameraStream, onFrame, onGesture, startFace, stopFace, winkLevel, type Gesture } from './engine'
 import FaceGuide, { CYCLE_S, type GuideAction } from './FaceGuide'
 import SwitchLayer from './SwitchLayer'
 
@@ -33,6 +33,7 @@ export default function Welcome() {
   const [success, setSuccess] = useState(false)
   const [miss, setMiss] = useState<string | null>(null)
   const [covers, setCovers] = useState<string[]>([])
+  const [wink, setWink] = useState(0) // live: how far one eye is shut past the other, 1 = counts as a wink
   const video = useRef<HTMLVideoElement>(null)
   const step = STEPS[i]
   const go = (to: number) => {
@@ -78,6 +79,7 @@ export default function Welcome() {
     let since = 0
     const off = onFrame((f) => {
       setFace(f.found)
+      if (step.id === 'wink' && f.found) setWink(Math.min(1, winkLevel(f)))
       if (step.id !== 'hello') return
       if (!f.found) since = 0
       else if (!since) since = f.t
@@ -171,6 +173,11 @@ export default function Welcome() {
           <p>{step.line}</p>
           {step.id === 'hello' && camera === 'denied' && (
             <p className="welcome-warn">The camera is blocked. Allow it, or use mouse &amp; keyboard.</p>
+          )}
+          {step.id === 'wink' && !success && (
+            <span className={`wink-meter${wink >= 1 ? ' hit' : ''}`} role="meter" aria-label="Wink strength" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(wink * 100)}>
+              <span style={{ transform: `scaleX(${wink})` }} />
+            </span>
           )}
           {miss && <p className="welcome-miss">{miss}</p>}
           {step.id === 'ready' ? (
