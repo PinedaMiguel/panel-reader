@@ -7,7 +7,7 @@ import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision'
 export type FaceFrame = {
   t: number // ms
   found: boolean
-  yaw: number // degrees, + = head turned to the user's left (screen right)
+  yaw: number // degrees, + = head turned to the user's right (confirmed on a real webcam)
   pitch: number // degrees, + = looking up
   gaze: { x: number; y: number } // eye direction within the eye openings, roughly -1..1
   smile: number // 0..1
@@ -236,7 +236,7 @@ function detectTurn(f: FaceFrame) {
   turnSince ||= f.t
   if (f.t - turnSince < HOLD_MS || (turnFired && f.t - turnFired < REPEAT_MS)) return
   turnFired = f.t
-  const g: Gesture = off > 0 ? 'left' : 'right' // checked on a real webcam: yaw + = turned to the user's left
+  const g: Gesture = off > 0 ? 'right' : 'left' // confirmed by the user on a real webcam (twice): yaw + = turned right
   gestureListeners.forEach((fn) => fn(g))
 }
 
