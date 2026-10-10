@@ -61,8 +61,8 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
   const refs = useRef<(HTMLElement | null)[]>([])
   const cover = useRef<HTMLElement | null>(null)
   const [playing, setPlaying] = useState(false)
-  // Opt-in like every accessibility feature. Narration plays with the recorded narrator where one
-  // exists (older comics) and the browser's voice otherwise.
+  // Opt-in like every accessibility feature. Narration plays the recorded narrator: an existing
+  // ElevenLabs recording where there is one, edge-tts otherwise.
   const [audiobook, setAudiobook] = useState(false)
   const toggleAudiobook = () => setAudiobook((on) => !on)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -127,7 +127,6 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
     comic.characters,
     playing,
     audiobook,
-    comic.lang ?? 'original',
     () => {
       if (active + 1 < panels.length) setTimeout(() => goTo(active + 1), 600)
       else {

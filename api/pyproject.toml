@@ -5,6 +5,7 @@ description = "Comic panel reader pipeline: Gemini script agent + ElevenLabs voi
 requires-python = ">=3.12"
 dependencies = [
     "boto3>=1.43.111",
+    "edge-tts>=7.2.8",
     "einops>=0.8.2",
     "fastapi>=0.143.0",
     "google-genai>=2.29.0",

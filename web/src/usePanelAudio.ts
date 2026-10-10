@@ -7,27 +7,6 @@ type Item = Caption & { audio?: string; kind: 'narration' | 'line' }
 
 const SFX_VOLUME = 0.35
 
-// Browser voice: speak in the comic's language (translations), with an installed voice for it.
-const LOCALES: Record<string, string> = {
-  original: 'en-US', es: 'es-ES', fr: 'fr-FR', pt: 'pt-BR', de: 'de-DE', ja: 'ja-JP', hi: 'hi-IN', zh: 'zh-CN',
-}
-
-function browserVoice(lang: string): { locale: string; voice: SpeechSynthesisVoice | null } {
-  const locale = LOCALES[lang] ?? lang
-  const voices = speechSynthesis.getVoices()
-  const base = locale.split('-')[0].toLowerCase()
-  const same = voices.filter((v) => v.lang.toLowerCase().replace('_', '-').startsWith(base))
-  const exact = same.filter((v) => v.lang.toLowerCase().replace('_', '-') === locale.toLowerCase())
-  // Prefer the exact regional voice, then any voice for the language; local voices first (no network).
-  const pick = (list: SpeechSynthesisVoice[]) => list.find((v) => v.localService) ?? list[0] ?? null
-  return { locale, voice: pick(exact) ?? pick(same) }
-}
-
-// getVoices() is empty until the browser has loaded its voice list.
-if (typeof speechSynthesis !== 'undefined') {
-  speechSynthesis.getVoices()
-  speechSynthesis.addEventListener?.('voiceschanged', () => speechSynthesis.getVoices())
-}
 const LOOK_MS = 3000 // nothing to say: time to take in the art
 const MAX_SFX_WAIT_MS = 4500 // longer effects fade out on the page turn
 
@@ -49,15 +28,12 @@ export function usePanelAudio(
   characters: Character[],
   playing: boolean,
   audiobook: boolean,
-  lang: string, // 'original' or a translation code: the browser voice speaks this language
   onDone: () => void,
   onBlocked?: () => void, // the browser refused to autoplay (no user gesture yet)
 ) {
   const [caption, setCaption] = useState<Caption | null>(null)
   const runner = useRef<Runner | null>(null)
   const audiobookRef = useRef(audiobook)
-  const langRef = useRef(lang)
-  langRef.current = lang
   const onDoneRef = useRef(onDone)
   const onBlockedRef = useRef(onBlocked)
   onDoneRef.current = onDone
@@ -104,7 +80,6 @@ export function usePanelAudio(
     let paused = false
     const waiters: (() => void)[] = []
     let currentAudio: HTMLAudioElement | null = null
-    let speakingAloud = false // browser speech fallback in progress
     let currentKind: Item['kind'] | null = null
     let finishCurrent: (() => void) | null = null
     let sfx: HTMLAudioElement[] = []
@@ -123,30 +98,15 @@ export function usePanelAudio(
         currentKind = item.kind
         finishCurrent = () => {
           currentAudio?.pause()
-          if (speakingAloud) speechSynthesis.cancel()
           resolve()
         }
-        if (item.audio) {
-          const a = (currentAudio = new Audio(item.audio))
-          a.onended = () => resolve()
-          a.onerror = () => resolve()
-          a.play().catch((e) => {
-            if (e?.name === 'NotAllowedError') onBlockedRef.current?.() // the reader pauses; Play retries
-            else resolve()
-          })
-        } else {
-          // No rendered clip (quota ran out, or not generated yet): use the browser's voice.
-          const u = new SpeechSynthesisUtterance(item.text)
-          const { locale, voice } = browserVoice(langRef.current)
-          u.lang = locale
-          if (voice) u.voice = voice
-          speakingAloud = true
-          u.onend = u.onerror = () => {
-            speakingAloud = false
-            resolve()
-          }
-          speechSynthesis.speak(u)
-        }
+        const a = (currentAudio = new Audio(item.audio))
+        a.onended = () => resolve()
+        a.onerror = () => resolve()
+        a.play().catch((e) => {
+          if (e?.name === 'NotAllowedError') onBlockedRef.current?.() // the reader pauses; Play retries
+          else resolve()
+        })
       }).finally(() => {
         currentAudio = null
         currentKind = null
@@ -173,6 +133,7 @@ export function usePanelAudio(
         if (stopped) return
         // Read the mode at the moment the narration would start: never go back for one already passed.
         if (item.kind === 'narration' && !audiobookRef.current) continue
+        if (!item.audio) continue // only recorded audio is played (ElevenLabs voices, edge-tts narrator)
         setCaption(item)
         spoken++
         await speak(item)
@@ -194,21 +155,18 @@ export function usePanelAudio(
       pause() {
         paused = true
         currentAudio?.pause()
-        if (speakingAloud) speechSynthesis.pause()
         sfx.forEach((a) => a.pause())
       },
       resume() {
         if (!paused) return
         paused = false
         currentAudio?.play().catch(() => {})
-        if (speakingAloud) speechSynthesis.resume()
         sfx.forEach((a) => !a.ended && a.play().catch(() => {}))
         waiters.splice(0).forEach((r) => r())
       },
       stop() {
         stopped = true
         currentAudio?.pause()
-        speechSynthesis.cancel()
         waiters.splice(0).forEach((r) => r())
         // Fade sound effects out instead of cutting them off mid-sound.
         sfx.forEach((a) => {

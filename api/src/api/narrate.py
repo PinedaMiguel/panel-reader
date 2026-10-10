@@ -11,8 +11,8 @@ import json
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from . import eleven, gemini
-from .voices import NARRATOR, NEUTRAL, POOL
+from . import edge, eleven, gemini
+from .voices import NEUTRAL, POOL
 
 
 def enrich(comic: dict, public: Path, force: bool) -> None:
@@ -58,9 +58,10 @@ def cast(comic: dict) -> None:
 
 
 def render(comic: dict, comic_dir: Path, url_prefix: str, progress=None,
-           narration: bool = True, lines: bool = True, sfx: bool = True) -> None:
+           narration: bool = True, lines: bool = True, sfx: bool = True, lang: str | None = None) -> None:
     """Record missing clips. progress(done, total, panel_id, kind) is called after each clip
-    (kind: narration/line/sfx). Uploads record lines + sfx only; the reader voices narration itself."""
+    (kind: narration/line/sfx). Dialogue and sound effects use ElevenLabs; narration uses edge-tts in
+    `lang` (never ElevenLabs). Panels that already have narration audio, ElevenLabs included, keep it."""
     out = comic_dir / "audio"
     out.mkdir(exist_ok=True)
     voices = {c["id"]: c["voiceId"] for c in comic["characters"]}
@@ -72,7 +73,7 @@ def render(comic: dict, comic_dir: Path, url_prefix: str, progress=None,
         pid = panel["id"]
         if narration and panel.get("narration") and not panel.get("narrationAudio"):
             jobs.append((pid, "narration", panel, "narrationAudio",
-                         lambda t=panel["narration"]: eleven.tts(t, NARRATOR, out)))
+                         lambda t=panel["narration"]: edge.narrate(t, lang, out)))
         for line in (l for l in panel.get("lines", []) if lines and not l.get("audio")):
             voice = voices.get(line.get("speaker"), NEUTRAL)
             text = line.get("tagged") or line["text"]

@@ -1,6 +1,5 @@
 """Voice pool: ElevenLabs default voices. The API key can't list voices, so the pool is fixed."""
 
-NARRATOR = "JBFqnCBsd6RMkjVDRZzb"  # George: warm, mature British storyteller
 NEUTRAL = "SAz9YHcvj6GT2YYXdXww"  # River: relaxed, gender-neutral; used when the speaker is unknown
 
 # id -> short description the casting agent picks from

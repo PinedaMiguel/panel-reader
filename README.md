@@ -18,7 +18,7 @@ Built at **KnightHacks IX** (UCF, October 2026).
 - **A voice per character.** Each character is cast a distinct ElevenLabs voice that stays the same on every page, even across separate uploads of the same comic.
 - **Expressive delivery.** Lines carry emotion tags (`[whispers]`, `[urgently]`, `[nervous laugh]`) that the ElevenLabs v3 model performs.
 - **Sound effects** recorded with ElevenLabs play under each panel.
-- **Audiobook mode** adds a narrator who describes the setting, what happens, and each character's emotion and body language. It can be switched on or off at any moment: turning it off skips straight to the dialogue, and turning it on picks up from the next narration.
+- **Audiobook mode** adds a narrator (a neural edge-tts voice in the reading language) who describes the setting, what happens, and each character's emotion and body language. It can be switched on or off at any moment: turning it off skips straight to the dialogue, and turning it on picks up from the next narration.
 
 ### Accessibility (all opt-in)
 - **Fonts:** OpenDyslexic for dyslexia, Atkinson Hyperlegible for low vision, and adjustable caption size (80–200%).
@@ -43,13 +43,14 @@ page image ──► Magi v2 (Hugging Face) ──► panels + reading order
                           dialogue with speakers and emotion tags, sound-effect prompts, emotion labels
            ──► Gemini ──► voice casting (one ElevenLabs voice per character)
            ──► ElevenLabs ──► dialogue clips (eleven_v3) + sound effects
+           ──► edge-tts ──► audiobook narrator, in the comic's language
            ──► Neon ──► Postgres rows (comics, pages, panels, lines, characters, translations)
                         + object storage bucket (page images, panel crops, audio)
 ```
 
 - **Panel detection:** [Magi v2](https://huggingface.co/ragavsachdeva/magiv2) finds the panels. Its manga (right-to-left) ordering is re-sorted into Western rows read left to right.
 - **Script:** Gemini makes one whole-page call to build the cast list, so every panel uses the same character ids, then analyses the panels in parallel. Requests fail over across several Gemini Flash models when one is overloaded or rate-limited.
-- **Audio:** ElevenLabs records dialogue and sound effects. Clips are cached by content hash, so nothing is recorded twice. Audiobook narration uses the reader's browser voice, or a recorded narrator where the comic has one.
+- **Audio:** ElevenLabs records dialogue and sound effects; edge-tts (Microsoft neural voices) records the audiobook narrator in each language, and narrator recordings that already exist are kept. Clips are cached by content hash, so nothing is recorded twice.
 - **Storage:** Neon Postgres is queried over Neon's HTTPS SQL endpoint, and files live in a private Neon bucket served through signed links. Each page's SHA-256 hash is stored so repeat uploads reuse their results.
 - **Progress:** the API streams structured pipeline events (Server-Sent Events) that drive the visualization, live for new pages and as a replay for cached ones.
 
@@ -62,6 +63,7 @@ page image ──► Magi v2 (Hugging Face) ──► panels + reading order
 | Panel detection | Magi v2 via Hugging Face `transformers` + PyTorch |
 | Script, casting, translation | Google Gemini API (`google-genai`) |
 | Voices and sound effects | ElevenLabs (`eleven_v3`, Sound Effects) |
+| Audiobook narrator | edge-tts (Microsoft neural voices) |
 | Database and files | Neon Postgres + Neon Object Storage |
 | Hosting | Vultr VM with Caddy (automatic HTTPS), via `deploy/` |
 
@@ -135,7 +137,8 @@ neon.ts        Neon infrastructure config (the uploads bucket)
 
 - **AI models and APIs:**
   - **Google Gemini** for scripts, casting and translation.
-  - **ElevenLabs** for voices and sound effects.
+  - **ElevenLabs** for character voices and sound effects.
+  - **edge-tts** (Microsoft neural voices) for the audiobook narrator.
   - **Magi v2** by Ragav Sachdeva et al. for panel detection, used under its research / non-commercial license.
 - **Infrastructure:** Neon (Postgres and Object Storage), Vultr (hosting), Caddy.
 - **AI-assisted development:** much of this code was written with **Claude Code** (Anthropic) as a pair-programming assistant, directed and reviewed by the team.

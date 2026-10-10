@@ -377,7 +377,7 @@ export default function Processing({ job, files, title, onFinish, onBack, leavin
                   {Array.from({ length: 18 }, (_, i) => <span key={i} style={{ animationDelay: `${i * 60}ms` }} />)}
                 </p>
                 <p className="hint">
-                  {audioDone.size} of {strip.length} panels voiced{recording ? ': recording with ElevenLabs…' : ''}
+                  {audioDone.size} of {strip.length} panels voiced{recording ? ': recording voices (ElevenLabs) and narrator (edge-tts)…' : ''}
                 </p>
               </section>
             )}

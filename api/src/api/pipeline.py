@@ -146,7 +146,7 @@ def _run(job: Job, uploads: list[Upload], title: str, rtl: bool, audio: bool, ta
     job.update("casting voices")
     narrate.cast(comic)
     job.emit("voices", characters=_voice_list(comic))
-    pending = _pending_panels(comic, narration=False) if audio else set()
+    pending = _pending_panels(comic) if audio else set()
     job.emit("audio", total=len(pending), cached=[
         p["id"] for page in comic["pages"] for p in page["panels"] if p["id"] not in pending
     ])
@@ -157,8 +157,8 @@ def _run(job: Job, uploads: list[Upload], title: str, rtl: bool, audio: bool, ta
             job.update("recording audio", d, t)
             job.emit("clip", panel=pid, kind=kind, done=d, total=t)
 
-        # Dialogue + sound effects only; audiobook narration uses the reader's browser voice.
-        narrate.render(comic, root, cid, progress=progress, narration=False)
+        # Dialogue + sound effects with ElevenLabs; the narrator with edge-tts.
+        narrate.render(comic, root, cid, progress=progress)
     _save_local(root, comic)
 
     # 4. Publish: new files → Neon bucket, script → Neon Postgres.
@@ -333,7 +333,7 @@ def _translate(job: Job, cid: str, lang: str, language: str, audio: bool) -> Non
 
     if audio:
         job.update("recording audio")
-        narrate.render(comic, root, cid, progress=lambda d, t, *_: job.update("recording audio", d, t), narration=False)
+        narrate.render(comic, root, cid, progress=lambda d, t, *_: job.update("recording audio", d, t), lang=lang)
 
     new = sorted(keys(comic) - before)
     for n, key in enumerate(new, 1):
