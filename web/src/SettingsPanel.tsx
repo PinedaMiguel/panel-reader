@@ -109,6 +109,11 @@ export default function SettingsPanel({ open, onClose, languages, translating }:
           <input type="checkbox" checked={s.gaze} onChange={(e) => set({ gaze: e.target.checked })} />
           Hands-free: control with my eyes and head
         </label>
+        {s.gaze && (
+          <button type="button" className="recalibrate" onClick={() => window.dispatchEvent(new Event('gaze-recalibrate'))}>
+            Recalibrate eyes
+          </button>
+        )}
       </fieldset>
 
       <form method="dialog">

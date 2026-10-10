@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import ColorFilters from './ColorFilters'
 import Home, { type ProcessJob } from './Home'
 import Processing from './Processing'
+import GazeLayer from './face/GazeLayer'
 import Reader from './Reader'
 import { useSettings } from './settings'
 import type { Comic } from './types'
@@ -152,6 +153,7 @@ export default function App() {
     <>
       {page}
       {overlay}
+      {settings.gaze && <GazeLayer />}
     </>
   )
 }
