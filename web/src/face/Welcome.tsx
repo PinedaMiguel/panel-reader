@@ -130,7 +130,7 @@ export default function Welcome() {
         role="dialog"
         aria-modal="true"
         aria-labelledby="welcome-title"
-        data-face-practice={step.id !== 'ready' || undefined}
+        data-face-own={step.id !== 'ready' || undefined}
         style={{ '--cycle': `${CYCLE_S}s` } as CSSProperties}
       >
         <header className="welcome-top">

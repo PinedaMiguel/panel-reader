@@ -1159,7 +1159,7 @@ html:has(.app) body { background: var(--surface-0); }
   border-radius: 999px; background: rgb(0 0 0 / 0.75); color: var(--muted); font: 500 0.9rem var(--font);
 }
 .switch-legend b { color: var(--fg); }
-body:has(.reader) .switch-legend, body:has(.welcome) .switch-legend { display: none; } /* would cover captions / the setup's own help */
+body:has(.reader) .switch-legend, body:has(.welcome) .switch-legend, body:has(.lineup) .switch-legend { display: none; } /* would cover captions / the setup's own help */
 .recalibrate { margin: 0 0 12px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--accent); background: none; color: var(--fg); cursor: pointer; }
 
 /* "What to watch next" preview */
@@ -1377,3 +1377,62 @@ body:has(.reader) .switch-legend, body:has(.welcome) .switch-legend { display: n
 }
 .choice-row button[aria-pressed='true'] { background: var(--accent); border-color: var(--accent); color: #000; }
 .choice-row button:disabled { opacity: 0.4; cursor: default; }
+
+/* Startup lineup: three previews in turn, then "playing next" */
+.lineup { position: fixed; inset: 0; z-index: 8500; overflow: hidden; background: #000; color: var(--fg); font-family: var(--font); }
+.lineup .teaser { position: absolute; inset: 0; aspect-ratio: auto; background: #000; }
+.lineup .teaser img { object-fit: cover; }
+.lineup .teaser-line { left: auto; right: clamp(16px, 5vw, 64px); bottom: 110px; max-width: min(460px, 40vw); }
+.lineup .teaser-mute { top: 84px; bottom: auto; right: clamp(16px, 4vw, 48px); }
+.lineup-shade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, rgb(0 0 0 / 0.9), rgb(0 0 0 / 0.55) 42%, transparent 75%), linear-gradient(transparent 55%, rgb(0 0 0 / 0.85)); }
+.lineup-top { position: absolute; inset: 0 0 auto; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px clamp(16px, 4vw, 48px); }
+.lineup-kicker { color: var(--accent); font: 400 1.7rem var(--display-font); letter-spacing: 0.04em; }
+.lineup-picks { display: flex; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.lineup-picks li { width: 44px; aspect-ratio: 2 / 3; border-radius: 8px; overflow: hidden; opacity: 0.45; outline: 2px solid transparent; outline-offset: 3px; transition: opacity 0.3s, outline-color 0.3s, transform 0.3s; }
+.lineup-picks li.seen { opacity: 0.25; }
+.lineup-picks li.now { opacity: 1; outline-color: var(--accent); transform: scale(1.08); }
+.lineup-picks img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lineup-info { position: absolute; z-index: 2; left: clamp(16px, 6vw, 96px); bottom: 96px; display: grid; gap: 14px; justify-items: start; max-width: min(620px, calc(100% - 32px)); }
+.lineup-info .eyebrow { margin: 0; }
+.lineup-info h1 { margin: 0; font: 400 clamp(2.6rem, 6vw, 5rem) / 0.95 var(--display-font); letter-spacing: 0.02em; color: #fff; text-shadow: 0 4px 0 #000; }
+.lineup-synopsis { margin: 0; font-size: 1.05rem; line-height: 1.6; color: #e2ddd8; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.lineup-hint { margin: 0; color: var(--muted); font-size: 0.9rem; }
+.lineup-bottom { position: absolute; inset: auto 0 0; z-index: 2; display: flex; align-items: center; gap: 20px; padding: 0 clamp(16px, 4vw, 48px) 28px; }
+.lineup-heart { display: flex; align-items: center; gap: 10px; color: #ff5a6e; font-size: 1.3rem; }
+.lineup-heart b, .next-scores b { font-size: 1rem; color: var(--fg); font-variant-numeric: tabular-nums; min-width: 3ch; }
+.lineup .heart-bar span { transform-origin: left; transition: transform 0.3s; }
+.lineup-progress { flex: 1; height: 4px; border-radius: 99px; background: rgb(255 255 255 / 0.18); overflow: hidden; }
+.lineup-progress span { display: block; height: 100%; background: var(--accent); transform-origin: left; animation: lineup-progress linear both; }
+@keyframes lineup-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (prefers-reduced-motion: no-preference) {
+  .lineup-info > * { animation: card-in 0.5s ease-out both; }
+}
+
+.lineup-next { display: grid; place-items: center; padding: 24px; }
+.lineup-backdrop { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(40px) brightness(0.45); transform: scale(1.2); }
+.next-card { position: relative; display: flex; gap: clamp(20px, 4vw, 48px); align-items: center; max-width: 980px; }
+.next-cover { width: min(300px, 32vw); aspect-ratio: 2 / 3; object-fit: cover; border-radius: 20px; box-shadow: 0 40px 80px rgb(0 0 0 / 0.6), 0 0 0 4px #000, 8px 8px 0 4px var(--accent); }
+.next-text { display: grid; gap: 16px; }
+.next-text .eyebrow { margin: 0; }
+.next-text h1 { margin: 0; font: 400 clamp(2.4rem, 5vw, 4.2rem) / 0.95 var(--display-font); letter-spacing: 0.02em; color: #fff; }
+.next-text h1 span { display: block; margin-top: 8px; font: 600 1.2rem var(--font); color: var(--muted); letter-spacing: 0; }
+.next-scores { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.next-scores li { display: grid; grid-template-columns: minmax(0, 220px) 1fr auto; align-items: center; gap: 12px; opacity: 0.55; }
+.next-scores li.win { opacity: 1; }
+.next-scores li.win b { color: #ff5a6e; }
+.next-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.next-scores .heart-bar { width: auto; height: 10px; }
+.next-scores .heart-bar span { transform-origin: left; }
+.next-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.next-count {
+  display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; font: 700 1.4rem var(--font);
+  background: conic-gradient(var(--accent) var(--p, 100%), rgb(255 255 255 / 0.15) 0); position: relative;
+}
+.next-count { isolation: isolate; transition: --p 1s linear; }
+.next-count::before { content: ''; position: absolute; inset: 5px; z-index: -1; border-radius: 50%; background: #111; }
+@media (max-width: 760px) {
+  .next-card { flex-direction: column; align-items: stretch; }
+  .next-cover { width: 150px; align-self: center; }
+  .lineup-info { bottom: 80px; }
+  .lineup .teaser-line { display: none; }
+}

@@ -40,6 +40,9 @@ export function useHeart(comicId: string, enabled: boolean) {
   const value = useRef(score)
 
   useEffect(() => {
+    // A different comic (the lineup switches shows): start from that comic's own score, not the last one's.
+    value.current = loadHearts()[comicId]?.score ?? 50
+    setScore(value.current)
     if (!enabled) {
       setStatus('off')
       return

@@ -48,7 +48,7 @@ export default function SwitchLayer() {
   useEffect(() => {
     let hide = 0
     const off = onGesture((g) => {
-      if (document.querySelector('[data-face-practice]')) return // the setup is practising gestures, not acting on them
+      if (document.querySelector('[data-face-own]')) return // that screen (the setup, the lineup) handles gestures itself
       const dialog = [...document.querySelectorAll('dialog')].find((d) => d.open)
       const inReader = !!document.querySelector('.reader[data-playing="true"]') && !dialog
       if (g === 'wink') {
@@ -80,7 +80,7 @@ export default function SwitchLayer() {
   useEffect(() => {
     const t = setInterval(() => {
       const a = document.activeElement
-      if ((a && a !== document.body) || document.querySelector('[data-face-practice]')) return
+      if ((a && a !== document.body) || document.querySelector('[data-face-own]')) return
       if (document.querySelector('.reader[data-playing="true"]') && ![...document.querySelectorAll('dialog')].some((d) => d.open)) return
       targets().find((el) => el.getBoundingClientRect().top >= 0)?.focus({ preventScroll: true })
     }, 400)

@@ -1,6 +1,8 @@
 import { useEffect, useState, type CSSProperties } from 'react'
+import Lineup, { LINEUP_SEEN } from './Lineup'
 import Preview from './Preview'
 import { loadHearts } from './face/heart'
+import { useSettings } from './settings'
 
 type Listed = {
   id: string
@@ -13,6 +15,13 @@ type Listed = {
   moods?: string[] | null
 }
 
+// Tone from Gemini's genre and mood tags: above 0 is dark (horror, crime, tense), below 0 light (comedy,
+// wholesome, whimsical). Only the sign and order matter.
+const DARK = /horror|thrill|crime|noir|myster|suspens|dark|tense|grit|eerie|creep|chill|macabre|sinister|spook|ominous|grim|\bwar\b|political|conspira|supernatural|menac/
+const LIGHT = /comed|humor|humour|funny|wholesome|whims|light|playful|heartwarm|cozy|charm|silly|feel-good|cheer|family|child|fairy|dream|gentle|sweet|fantasy/
+const tone = (c: { genres?: string[] | null; moods?: string[] | null }) =>
+  [...(c.genres ?? []), ...(c.moods ?? [])].reduce((t, w) => t + (DARK.test(w.toLowerCase()) ? 1 : 0) - (LIGHT.test(w.toLowerCase()) ? 1 : 0), 0)
+
 export type ProcessJob = { id: string; files: File[]; title: string }
 
 // Home: just the shows, like a TV app. Nothing to search, scroll or aim at: turn your head to move between
@@ -22,6 +31,22 @@ export default function Home({ onProcess }: { onProcess: (job: ProcessJob) => vo
   const [comics, setComics] = useState<Listed[] | null>(null)
   const [previewing, setPreviewing] = useState<Listed | null>(null)
   const [blurb, setBlurb] = useState<{ id: string; synopsis: string; minutes: number } | null>(null)
+  const [settings] = useSettings()
+  const [lineup, setLineup] = useState(() => {
+    try {
+      return !sessionStorage.getItem(LINEUP_SEEN)
+    } catch {
+      return false
+    }
+  })
+  const closeLineup = () => {
+    try {
+      sessionStorage.setItem(LINEUP_SEEN, '1')
+    } catch {
+      // storage blocked: fine, it's closed for now
+    }
+    setLineup(false)
+  }
 
   useEffect(() => {
     fetch('/api/comics')
@@ -51,6 +76,17 @@ export default function Home({ onProcess }: { onProcess: (job: ProcessJob) => vo
         .filter((r) => r.shared > 0)
         .sort((a, b) => b.shared - a.shared)
         .map((r) => r.c)
+    : []
+
+  // "Something different": when the heart meter says you didn't enjoy a show, offer the opposite tone
+  // (horror → comedy and wholesome, and the other way round).
+  const disliked = list
+    .filter((c) => (hearts[c.id]?.score ?? 50) < 40 && c.genres)
+    .sort((a, b) => hearts[a.id].score - hearts[b.id].score)[0]
+  const different = disliked
+    ? list
+        .filter((c) => c.id !== disliked.id && c.genres && Math.sign(tone(c)) !== Math.sign(tone(disliked)))
+        .sort((a, b) => (tone(disliked) > 0 ? tone(a) - tone(b) : tone(b) - tone(a)))
     : []
 
   // Featured: the heart meter's favourite, else the newest. Its synopsis comes from the (cached) preview.
@@ -137,6 +173,18 @@ export default function Home({ onProcess }: { onProcess: (job: ProcessJob) => vo
           </section>
         )}
 
+        {disliked && different.length > 0 && (
+          <section className="shelf" aria-labelledby="shelf-different">
+            <div className="shelf-head">
+              <h2 id="shelf-different">
+                Not feeling {disliked.title}? Try something {tone(disliked) > 0 ? 'lighter' : 'with more bite'}
+              </h2>
+              <p>Your heart meter dipped, so here's the opposite mood.</p>
+            </div>
+            <ul className="shows">{different.map(card)}</ul>
+          </section>
+        )}
+
         <section className="shelf" aria-labelledby="shelf-comics">
           <div className="shelf-head">
             <h2 id="shelf-comics">Shows</h2>
@@ -147,8 +195,12 @@ export default function Home({ onProcess }: { onProcess: (job: ProcessJob) => vo
 
         <footer className="credits">
           Made at KnightHacks IX with Gemini, ElevenLabs, Hugging Face (Magi v2) and Neon.
+          <br />
+          <i>Pepper&amp;Carrot</i> by David Revoy, <a href="https://www.peppercarrot.com">peppercarrot.com</a>, CC BY 4.0.
+          Other classic comics are public domain.
         </footer>
       </main>
+      {lineup && settings.onboarded && list.length > 0 && <Lineup comics={list} onDone={closeLineup} />}
       {previewing && (
         <Preview
           id={previewing.id}
