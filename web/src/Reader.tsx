@@ -126,6 +126,7 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
     comic.characters,
     playing,
     audiobook,
+    comic.lang ?? 'original',
     () => {
       if (active + 1 < panels.length) setTimeout(() => goTo(active + 1), 600)
       else setPlaying(false)
