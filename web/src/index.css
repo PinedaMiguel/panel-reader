@@ -86,8 +86,18 @@ body {
   position: fixed;
   inset: -40px;
   z-index: -1;
-  background-repeat: no-repeat;
+  overflow: hidden;
   filter: blur(7px) brightness(0.32) saturate(0.85);
+}
+
+/* One page of the backdrop strip; its transform places it beside its neighbours. */
+.camera-page {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
 }
 
 .topbar {
@@ -193,11 +203,11 @@ body {
 /* All motion lives here, so "reduce motion" gets a calm, static reader. */
 @media (prefers-reduced-motion: no-preference) {
   .camera {
-    transition: background-position 0.9s cubic-bezier(0.65, 0, 0.35, 1), background-size 0.9s cubic-bezier(0.65, 0, 0.35, 1);
     animation: fade-in 0.6s ease;
   }
 
   .frame { transition: height 0.4s ease; }
+  .camera-page { transition: transform 0.9s cubic-bezier(0.65, 0, 0.35, 1); }
   .stage { transition: padding 0.4s ease; }
 
   .shot.in { animation: shot-in 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
@@ -1014,3 +1024,35 @@ html:has(.app) body { background: var(--surface-0); }
 
 /* The reader is already painted underneath; uncover it. */
 .processing.leaving { opacity: 0; transition: opacity 0.3s ease; pointer-events: none; }
+
+/* ---------- End of comic: pull back to the full page(s), carousel ---------- */
+.finale { position: fixed; inset: 0; z-index: 15; background: #000; overflow: hidden; }
+.finale-page {
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  transform-origin: 0 0;
+  cursor: pointer;
+}
+.finale-page img { display: block; width: 100%; height: 100%; filter: blur(var(--blur, 7px)) brightness(0.32) saturate(0.85); }
+.finale.open .finale-page img { filter: none; border-radius: 4px; box-shadow: 0 30px 80px rgb(0 0 0 / 0.6); }
+.finale-panel { position: absolute; background-repeat: no-repeat; filter: drop-shadow(0 18px 40px rgb(0 0 0 / 0.7)); }
+.finale.open .finale-panel { opacity: 0; }
+.finale-page:focus-visible { outline: 4px solid var(--accent); outline-offset: 6px; }
+.finale-top, .finale-bar { position: absolute; left: 0; right: 0; display: flex; justify-content: center; align-items: center; gap: 12px; opacity: 0; }
+.finale-top { top: 24px; flex-direction: column; gap: 2px; }
+.finale-top h2 { margin: 0; font: 400 2.2rem var(--display-font); color: var(--accent); letter-spacing: 0.04em; text-shadow: 3px 3px 0 #000; }
+.finale-top p { margin: 0; color: var(--muted); }
+.finale-bar { bottom: 28px; }
+.finale-bar a.btn { text-decoration: none; }
+.finale.open .finale-top, .finale.open .finale-bar { opacity: 1; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .finale-page { transition: transform 1.6s cubic-bezier(0.65, 0, 0.35, 1), opacity 0.6s ease; }
+  .finale-page img { transition: filter 1.4s ease; }
+  .finale-panel { transition: opacity 0.6s ease 1s; }
+  .finale-top, .finale-bar { transition: opacity 0.5s ease 1.2s; }
+}

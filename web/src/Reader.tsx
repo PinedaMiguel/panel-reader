@@ -1,5 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import Finale from './Finale'
 import SettingsPanel from './SettingsPanel'
+import { MAX_PANEL_W, PAD, framePanel } from './camera'
 import { useSettings } from './settings'
 import type { Comic, Page, Panel } from './types'
 import { usePanelAudio } from './usePanelAudio'
@@ -16,8 +18,6 @@ type Props = {
 // Okabe-Ito: distinguishable with every common colour-vision deficiency. Names are always shown too.
 const SPEAKER_COLORS = ['#E69F00', '#56B4E9', '#009E73', '#F0E442', '#CC79A7', '#D55E00', '#0072B2']
 
-const PAD = 16
-const MAX_PANEL_W = 900
 const CAPTION_SPACE = 150
 const BLEED = 40 // .camera extends this far past the viewport so its blur has no hard edge
 
@@ -66,6 +66,7 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
   const [audiobook, setAudiobook] = useState(false)
   const toggleAudiobook = () => setAudiobook((on) => !on)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [finale, setFinale] = useState(false)
   const [settings] = useSettings()
   const vp = useViewport()
   const pageSizes = usePageSizes(comic.pages, knownSizes)
@@ -129,7 +130,11 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
     comic.lang ?? 'original',
     () => {
       if (active + 1 < panels.length) setTimeout(() => goTo(active + 1), 600)
-      else setPlaying(false)
+      else {
+        // End of the comic: a beat on the last panel, then pull back to the full page(s).
+        setPlaying(false)
+        setTimeout(() => setFinale(true), 1500)
+      }
     },
     () => setPlaying(false),
   )
@@ -186,7 +191,11 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
   const boxH = vp.h - 2 * PAD - reserved
   const center = { x: vp.w / 2, y: PAD + boxH / 2 }
   const current = entries[Math.max(active, 0)]
-  const camera = current && cameraStyle(current.panel, current.page, pageSizes[current.page.id], boxW, boxH, center)
+  // The backdrop: every page side by side, framed so the active panel's page sits behind the panel.
+  const placements = current?.panel.bbox
+    ? framePanel(comic.pages, pageSizes, { pageId: current.page.id, bbox: current.panel.bbox }, boxW, boxH, center)
+    : new Map()
+  const lastEntry = entries[entries.length - 1]
 
   const first = entries[0]
   const coverImage = first?.page.image || first?.panel.image
@@ -197,7 +206,40 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
       aria-label={comic.title}
       lang={comic.lang && comic.lang !== 'original' ? comic.lang : undefined}
     >
-      {camera && <div key={current.page.id} className="camera" style={camera} aria-hidden="true" />}
+      {placements.size > 0 && (
+        <div className="camera" aria-hidden="true">
+          {comic.pages.map((p) => {
+            const at = placements.get(p.id)
+            const size = pageSizes[p.id]
+            if (!at || !size || !p.image) return null
+            return (
+              <div
+                key={p.id}
+                className="camera-page"
+                style={{
+                  width: size.w,
+                  height: size.h,
+                  backgroundImage: `url("${p.image}")`,
+                  transform: `translate(${at.x + BLEED}px, ${at.y + BLEED}px) scale(${at.s})`,
+                }}
+              />
+            )
+          })}
+        </div>
+      )}
+      {finale && lastEntry?.panel.bbox && (
+        <Finale
+          pages={comic.pages}
+          sizes={pageSizes}
+          last={{ pageId: lastEntry.page.id, bbox: lastEntry.panel.bbox }}
+          onClose={() => setFinale(false)}
+          onRestart={() => {
+            setFinale(false)
+            goTo(0)
+            setPlaying(true)
+          }}
+        />
+      )}
 
       <div className="topbar" aria-hidden="true">
         <span style={{ width: `${((active + 1) / panels.length) * 100}%` }} />
@@ -333,25 +375,4 @@ function direction(from: Entry | undefined, to: Entry | undefined, a: number, b:
   const [x2, y2] = c(to.panel.bbox)
   const len = Math.hypot(x2 - x1, y2 - y1)
   return len ? [(x2 - x1) / len, (y2 - y1) / len] : fallback
-}
-
-// Scale and place the full page so the active panel's spot on it sits exactly behind the panel.
-function cameraStyle(
-  panel: Panel,
-  page: Page,
-  size: { w: number; h: number } | undefined,
-  boxW: number,
-  boxH: number,
-  center: { x: number; y: number },
-): CSSProperties | null {
-  if (!panel.bbox || !page.image || !size) return null
-  const [x1, y1, x2, y2] = panel.bbox
-  const s = Math.min(boxW / (x2 - x1), boxH / (y2 - y1))
-  const cx = (x1 + x2) / 2
-  const cy = (y1 + y2) / 2
-  return {
-    backgroundImage: `url("${page.image}")`,
-    backgroundSize: `${size.w * s}px ${size.h * s}px`,
-    backgroundPosition: `${center.x - cx * s + BLEED}px ${center.y - cy * s + BLEED}px`,
-  }
 }

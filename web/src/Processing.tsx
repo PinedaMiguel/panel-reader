@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { framePanel } from './camera'
 import type { Comic } from './types'
 
 // Full-screen visualization of the pipeline: the page, Magi's panel boxes in reading order, the crops
@@ -241,16 +242,21 @@ export default function Processing({ job, files, title, onFinish, onBack, leavin
   // Page placement: fitted into the stage area, or (during the hand-off) the reader's camera position.
   const area = { x: 24, y: 88, w: vp.w - (vp.w > 900 ? 420 : 48), h: vp.h - (vp.w > 900 ? 88 + 150 : 88 + 330) }
   const currentIndex = Math.max(0, pages.findIndex((p) => p.id === current))
+  // During the zoom every page takes its place in the reader's page strip, so the cut is invisible.
+  const pageStrip = zoom
+    ? framePanel(
+        pages.map((p) => ({ id: p.id, panels: [] })),
+        Object.fromEntries(pages.map((p) => [p.id, { w: p.w, h: p.h }])),
+        { pageId: zoom.page.id, bbox: zoom.box.bbox },
+        Math.min(vp.w - 2 * PAD, MAX_PANEL_W),
+        vp.h - 2 * PAD,
+        { x: vp.w / 2, y: vp.h / 2 },
+      )
+    : null
   const place = (p: PageState, k: number): CSSProperties => {
-    if (zoom && zoom.page.id === p.id) {
-      const [x1, y1, x2, y2] = padded(zoom.box.bbox, p)
-      const boxW = Math.min(vp.w - 2 * PAD, MAX_PANEL_W)
-      const boxH = vp.h - 2 * PAD
-      const s = Math.min(boxW / (x2 - x1), boxH / (y2 - y1))
-      return {
-        transform: `translate(${vp.w / 2 - ((x1 + x2) / 2) * s}px, ${vp.h / 2 - ((y1 + y2) / 2) * s}px) scale(${s})`,
-        '--blur': `${7 / s}px`,
-      } as CSSProperties
+    const at = pageStrip?.get(p.id)
+    if (at) {
+      return { transform: `translate(${at.x}px, ${at.y}px) scale(${at.s})`, '--blur': `${7 / at.s}px` } as CSSProperties
     }
     // Pages sit side by side; the current one is centred and its neighbours wait just off-stage.
     const s = Math.min(area.w / p.w, area.h / p.h)
