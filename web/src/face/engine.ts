@@ -177,22 +177,25 @@ function detectGestures(f: FaceFrame) {
   while (history.length && f.t - history[0].t > WINDOW_MS) history.shift()
   // While turned, or just back from a turn, the swing isn't a shake. 5 frames: slow cameras still count.
   if (f.t < cooldownUntil || turnSince || f.t - lastTurn < WINDOW_MS || f.t - seenSince < 2500 || history.length < 5) return
-  const swings = (key: 'yaw' | 'pitch') => {
+  // Swings = times the head crosses the middle of its recent range, counting only clear excursions to
+  // each side. Frame-to-frame jitter doesn't count, so one turn (a single crossing) is never a shake.
+  const swings = (key: 'yaw' | 'pitch', dead: number) => {
     const v = history.map((h) => h[key])
-    const range = Math.max(...v) - Math.min(...v)
+    const lo = Math.min(...v)
+    const hi = Math.max(...v)
+    const mid = (lo + hi) / 2
     let turns = 0
-    let dir = 0
-    for (let i = 1; i < v.length; i++) {
-      const d = v[i] - v[i - 1]
-      if (Math.abs(d) < 0.6) continue
-      const s = Math.sign(d)
-      if (dir && s !== dir) turns++
-      dir = s
+    let side = 0
+    for (const x of v) {
+      if (Math.abs(x - mid) < dead) continue
+      const s = Math.sign(x - mid)
+      if (side && s !== side) turns++
+      side = s
     }
-    return { range, turns }
+    return { range: hi - lo, turns }
   }
-  const p = swings('pitch')
-  const y = swings('yaw')
+  const p = swings('pitch', 3)
+  const y = swings('yaw', 4)
   let g: Gesture | null = null
   if (p.range > 10 && p.turns >= 2 && y.range < p.range * 0.6) g = 'nod'
   else if (y.range > 14 && y.turns >= 2 && p.range < y.range * 0.6) g = 'shake'
@@ -209,34 +212,68 @@ function detectGestures(f: FaceFrame) {
 const TURN_DEG = 16
 const HOLD_MS = 350
 const REPEAT_MS = 700
+const CENTRE_MS = 300 // back in the centre this long before the opposite direction can fire (no rebound)
+const REPEAT_FOR_MS = 3000 // a held turn repeats for this long, then stops (a long hold isn't a request)
+const POSTURE_MS = 12000 // turned this long = "forward" must be wrong (or you moved): re-centre there
 let restYaw: number | null = null
 let seenSince = 0
 let prevT = 0
 let turnSince = 0
 let turnFired = 0
 let lastTurn = 0
+let lastDir = 0
+let centredSince = 0
+let turnBlocked = false
+let needCentre = false // after a re-centre, wait for the head to settle before any turn
+// For the debug readout.
+export const turnState = () => ({ rest: restYaw, lastDir })
 function detectTurn(f: FaceFrame) {
-  // "Facing forward" is learned, never fixed: wherever the head rests relative to the camera. It settles
-  // fast when a face appears, then keeps following slowly, even while turned, so a bad start (camera off
-  // to one side, caught mid-turn) corrects itself instead of leaving one direction stuck on.
-  if (restYaw === null || f.t - prevT > 1000) {
+  // "Facing forward" is learned: it settles quickly when a face first appears, then follows slow posture
+  // changes only while you face roughly forward. It is kept through brief face loss (a big turn can lose
+  // the face for a moment; re-learning then would make the way back read as a turn the other way).
+  if (restYaw === null || f.t - prevT > 10000) {
     restYaw = f.yaw
     seenSince = f.t
   }
   const dt = Math.min(0.2, (f.t - prevT) / 1000)
   prevT = f.t
   const off = f.yaw - restYaw
-  const tau = f.t - seenSince < 1500 ? 0.4 : Math.abs(off) < TURN_DEG ? 2.5 : 8
-  restYaw += off * (dt / tau)
-  if (Math.abs(off) < TURN_DEG || f.t < cooldownUntil) {
+  const turned = Math.abs(off) >= TURN_DEG
+  if (f.t - seenSince < 1500) restYaw += off * Math.min(1, dt / 0.4)
+  else if (Math.abs(off) < TURN_DEG / 2) restYaw += off * (dt / 2.5) // follow posture only near the centre
+  if (turned && turnSince && f.t - turnSince > POSTURE_MS) {
+    // Turned for ages: "forward" started wrong or you've settled somewhere new. Re-centre and pause turns
+    // until the head has rested in the new centre, so one direction can't stay stuck on.
+    restYaw = f.yaw
+    turnSince = turnFired = lastDir = 0
+    needCentre = true
+    return
+  }
+  if (!turned || f.t < cooldownUntil) {
     if (turnFired) lastTurn = f.t // coming back from a turn
+    if (!turned) centredSince ||= f.t
+    if (needCentre && centredSince && f.t - centredSince > CENTRE_MS) needCentre = false
     turnSince = turnFired = 0
     return
   }
-  turnSince ||= f.t
-  if (f.t - turnSince < HOLD_MS || (turnFired && f.t - turnFired < REPEAT_MS)) return
+  if (needCentre) {
+    centredSince = 0
+    return
+  }
+  const dir = off > 0 ? 1 : -1
+  if (!turnSince) {
+    // A new turn starts. The way back from the last one can overshoot the other way: an opposite turn
+    // right after it only counts if the head first rested in the centre.
+    const rested = centredSince && f.t - centredSince > CENTRE_MS
+    turnBlocked = !!lastDir && dir !== lastDir && f.t - lastTurn < 1500 && !rested
+    turnSince = f.t
+  }
+  centredSince = 0
+  if (turnBlocked) return
+  if (f.t - turnSince < HOLD_MS || (turnFired && f.t - turnFired < REPEAT_MS) || f.t - turnSince > REPEAT_FOR_MS) return
   turnFired = f.t
-  const g: Gesture = off > 0 ? 'right' : 'left' // confirmed by the user on a real webcam (twice): yaw + = turned right
+  lastDir = dir
+  const g: Gesture = dir > 0 ? 'right' : 'left' // confirmed by the user on a real webcam: yaw + = turned right
   gestureListeners.forEach((fn) => fn(g))
 }
 
