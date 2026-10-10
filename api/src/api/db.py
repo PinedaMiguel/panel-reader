@@ -119,6 +119,8 @@ def save_comic(comic: dict) -> None:
                on conflict (id) do update set title = excluded.title, updated_at = now()""",
             [cid, comic["title"]],
         ),
+        # Translations hang off panels (on delete cascade): park them for the rewrite, restore after.
+        ("create temp table keep_translations on commit drop as select * from translations where comic_id = $1", [cid]),
         ("delete from characters where comic_id = $1", [cid]),
         ("delete from pages where comic_id = $1", [cid]),  # panels/lines go via their own deletes
         ("delete from panels where comic_id = $1", [cid]),
@@ -148,6 +150,11 @@ def save_comic(comic: dict) -> None:
                        values ($1, $2, $3, $4, $5, $6, $7)""",
                     [cid, p["id"], n, line.get("speaker"), line["text"], line.get("tagged"), line.get("audio")],
                 ))
+    stmts.append((
+        """insert into translations select k.* from keep_translations k
+           where exists (select 1 from panels p where p.comic_id = k.comic_id and p.id = k.panel_id)""",
+        [],
+    ))
     transaction(stmts)
 
 
