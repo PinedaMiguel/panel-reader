@@ -3,11 +3,12 @@ import { onGesture, startFace, stopFace, type Gesture } from './engine'
 
 // Hands-free control for the whole site, the "switch access" way: no pointer to aim and no calibration.
 // Turn your head right/left to move a highlight to the next/previous control, nod to press it, shake to
-// go back. In the reader, turns flip panels and a nod plays/pauses. The highlight is real keyboard focus,
+// go back. While a comic plays, only deliberate gestures count (an unconscious nod or shake shouldn't
+// stop the show): turns flip panels and a wink toggles audiobook narration. The highlight is real keyboard focus,
 // so screen readers announce each control and Tab/mouse keep working alongside.
 
 const SEL = 'button, a[href], [role="button"], input[type="checkbox"], summary, [data-switch-target]'
-const LABEL: Record<Gesture, string> = { right: 'Next →', left: '← Previous', nod: 'Nod: press', shake: 'Shake: back' }
+const LABEL: Record<Gesture, string> = { right: 'Next →', left: '← Previous', nod: 'Nod: press', shake: 'Shake: back', wink: 'Wink: narrator' }
 
 // Controls in reading order. Inside an open dialog only the dialog's controls count, like a keyboard.
 function targets(): HTMLElement[] {
@@ -49,14 +50,17 @@ export default function SwitchLayer() {
     const off = onGesture((g) => {
       if (document.querySelector('[data-face-practice]')) return // the setup is practising gestures, not acting on them
       const dialog = [...document.querySelectorAll('dialog')].find((d) => d.open)
-      const inReader = !!document.querySelector('.reader') && !dialog
-      if (g === 'left' || g === 'right') {
+      const inReader = !!document.querySelector('.reader[data-playing="true"]') && !dialog
+      if (g === 'wink') {
+        if (!inReader) return
+        key('a')
+      } else if (inReader && (g === 'nod' || g === 'shake')) return
+      else if (g === 'left' || g === 'right') {
         if (inReader) key(g === 'right' ? 'ArrowRight' : 'ArrowLeft')
         else move(g === 'right' ? 1 : -1)
       } else if (g === 'nod') {
         const el = document.activeElement as HTMLElement | null
-        if (inReader) key('p')
-        else if (el && el !== document.body && targets().includes(el)) el.click()
+        if (el && el !== document.body && targets().includes(el)) el.click()
         else move(1)
       } else if (dialog) dialog.close() // a synthetic Esc doesn't close a real dialog
       else key('Escape')
@@ -77,7 +81,7 @@ export default function SwitchLayer() {
     const t = setInterval(() => {
       const a = document.activeElement
       if (a && a !== document.body) return
-      if (document.querySelector('.reader') && ![...document.querySelectorAll('dialog')].some((d) => d.open)) return
+      if (document.querySelector('.reader[data-playing="true"]') && ![...document.querySelectorAll('dialog')].some((d) => d.open)) return
       targets().find((el) => el.getBoundingClientRect().top >= 0)?.focus({ preventScroll: true })
     }, 400)
     return () => clearInterval(t)

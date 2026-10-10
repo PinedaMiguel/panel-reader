@@ -257,8 +257,13 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
 
   // Arriving from the processing view: start playing as the curtain lifts. The click that started
   // the upload/replay was in this same page session, so the browser allows the audio.
+  // Hands-free: there's no Play to press (nods are ignored while reading), so it starts by itself.
   useEffect(() => {
-    if (startIndex < 0) return
+    if (startIndex < 0) {
+      if (!settings.gaze) return
+      const t = setTimeout(togglePlay, 1200)
+      return () => clearTimeout(t)
+    }
     const t = setTimeout(() => setPlaying(true), 450)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -326,6 +331,7 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
   return (
     <main
       className={`reader${arrived ? ' arrived' : ''}`}
+      data-playing={playing}
       aria-label={comic.title}
       lang={comic.lang && comic.lang !== 'original' ? comic.lang : undefined}
     >
@@ -465,22 +471,24 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
         </p>
       )}
 
-      <div className="controls" role="toolbar" aria-label="Reader controls">
-        <button type="button" aria-pressed={playing} onClick={togglePlay}>
-          {playing ? 'Pause' : 'Play'} <kbd>P</kbd>
-        </button>
-        <button
-          type="button"
-          aria-pressed={audiobook}
-          onClick={toggleAudiobook}
-          title={audiobook ? 'Narrator describes each scene' : 'Dialogue and sound effects only'}
-        >
-          Audiobook {audiobook ? 'on' : 'off'} <kbd>A</kbd>
-        </button>
-        <button type="button" onClick={() => setSettingsOpen(true)} aria-haspopup="dialog">
-          Settings <kbd>S</kbd>
-        </button>
-      </div>
+      {!(playing && settings.gaze) && ( // hands-free: nothing on screen to aim at while it plays
+        <div className="controls" role="toolbar" aria-label="Reader controls">
+          <button type="button" aria-pressed={playing} onClick={togglePlay}>
+            {playing ? 'Pause' : 'Play'} <kbd>P</kbd>
+          </button>
+          <button
+            type="button"
+            aria-pressed={audiobook}
+            onClick={toggleAudiobook}
+            title={audiobook ? 'Narrator describes each scene' : 'Dialogue and sound effects only'}
+          >
+            Audiobook {audiobook ? 'on' : 'off'} <kbd>A</kbd>
+          </button>
+          <button type="button" onClick={() => setSettingsOpen(true)} aria-haspopup="dialog">
+            Settings <kbd>S</kbd>
+          </button>
+        </div>
+      )}
 
       <SettingsPanel
         open={settingsOpen}

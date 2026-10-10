@@ -14,6 +14,7 @@ const PRACTICE: [Gesture, string, string][] = [
   ['left', '←', 'Turn your head left and hold: previous'],
   ['nod', '↕', 'Nod: press, play, pause'],
   ['shake', '↔', 'Shake: back, close'],
+  ['wink', '😉', 'Wink: narrator on or off while reading'],
 ]
 
 export default function Welcome() {
@@ -98,8 +99,8 @@ export default function Welcome() {
                   <b>Pick a show.</b> Turn your head to move between covers, nod to open one.
                 </li>
                 <li>
-                  <b>Listen along.</b> Every panel is read aloud, with a voice for each character. Turn to flip panels,
-                  nod to pause, shake to go back.
+                  <b>Listen along.</b> It plays by itself, a voice for each character. Turn to flip panels, wink to
+                  turn the narrator on or off. Nods and shakes are ignored while it plays.
                 </li>
                 <li>
                   <b>Get a pick.</b> A heart meter reads your expressions as you go and suggests what to read next.

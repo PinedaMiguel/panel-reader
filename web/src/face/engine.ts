@@ -14,9 +14,10 @@ export type FaceFrame = {
   eyeWide: number // 0..1
   browDown: number // 0..1
   sneer: number // 0..1
+  blink: { l: number; r: number } // 0..1 per eye
 }
 
-export type Gesture = 'nod' | 'shake' | 'left' | 'right' // left/right: the user's own left/right
+export type Gesture = 'nod' | 'shake' | 'left' | 'right' | 'wink' // left/right: the user's own left/right
 
 type Listener = (f: FaceFrame) => void
 type GestureListener = (g: Gesture) => void
@@ -107,7 +108,7 @@ function toFrame(r: ReturnType<FaceLandmarker['detectForVideo']>, t: number): Fa
   const lm = r.faceLandmarks?.[0]
   const shapes = r.faceBlendshapes?.[0]?.categories
   if (!lm || !shapes) {
-    return { t, found: false, yaw: 0, pitch: 0, gaze: { x: 0, y: 0 }, smile: 0, eyeWide: 0, browDown: 0, sneer: 0 }
+    return { t, found: false, yaw: 0, pitch: 0, gaze: { x: 0, y: 0 }, smile: 0, eyeWide: 0, browDown: 0, sneer: 0, blink: { l: 0, r: 0 } }
   }
   const b = (name: string) => shapes.find((c) => c.categoryName === name)?.score ?? 0
   // Head rotation from the facial transformation matrix (column-major 4x4).
@@ -139,6 +140,7 @@ function toFrame(r: ReturnType<FaceLandmarker['detectForVideo']>, t: number): Fa
     eyeWide: (b('eyeWideLeft') + b('eyeWideRight')) / 2,
     browDown: (b('browDownLeft') + b('browDownRight')) / 2,
     sneer: (b('noseSneerLeft') + b('noseSneerRight')) / 2,
+    blink: { l: b('eyeBlinkLeft'), r: b('eyeBlinkRight') },
   }
 }
 
@@ -149,6 +151,7 @@ let cooldownUntil = 0
 function detectGestures(f: FaceFrame) {
   if (!f.found) return
   detectTurn(f)
+  detectWink(f)
   history.push(f)
   while (history.length && f.t - history[0].t > WINDOW_MS) history.shift()
   if (f.t < cooldownUntil || f.t - lastTurn < WINDOW_MS || history.length < 8) return // turning back isn't a shake
@@ -201,4 +204,21 @@ function detectTurn(f: FaceFrame) {
   turnFired = lastTurn = f.t
   const g: Gesture = off > 0 ? 'right' : 'left' // sign checked on a real webcam: yaw + = turned to the user's right
   gestureListeners.forEach((fn) => fn(g))
+}
+
+// Wink = one eye shut while the other stays open, held briefly. A blink shuts both, so it never counts.
+const WINK_MS = 250
+let winkSince = 0
+let winkFired = 0
+function detectWink(f: FaceFrame) {
+  const { l, r } = f.blink
+  const wink = (l > 0.55 && r < 0.25) || (r > 0.55 && l < 0.25)
+  if (!wink) {
+    winkSince = 0
+    return
+  }
+  winkSince ||= f.t
+  if (f.t - winkSince < WINK_MS || f.t - winkFired < 1500) return
+  winkFired = f.t
+  gestureListeners.forEach((fn) => fn('wink'))
 }
