@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useSettings } from '../settings'
-import { cameraStream, onFrame, onGesture, startFace, stopFace, winkLevel, type Gesture } from './engine'
+import { cameraStream, onFrame, onGesture, startFace, stopFace, eyesClosedLevel, type Gesture } from './engine'
 import FaceGuide, { CYCLE_S, type GuideAction } from './FaceGuide'
 import SwitchLayer from './SwitchLayer'
 
@@ -16,11 +16,11 @@ const STEPS: Step[] = [
   { id: 'left', act: 'left', title: 'Turn left', line: 'Hold it to go back one.' },
   { id: 'nod', act: 'nod', title: 'Nod', line: 'Presses whatever is highlighted.' },
   { id: 'shake', act: 'shake', title: 'Shake', line: 'Closes it and goes back.' },
-  { id: 'wink', act: 'wink', title: 'Wink', line: 'While a comic plays, turns the narrator on or off.' },
+  { id: 'eyes', act: 'eyes', title: 'Close your eyes', line: 'Keep them closed for a second. While a comic plays, that turns the narrator on or off.' },
   { id: 'smile', act: 'smile', title: 'Just enjoy it', line: 'Your smiles fill a heart meter that picks what to read next. Nothing to do here.' },
   { id: 'ready', act: 'nod', title: 'You’re set', line: 'Nod to start reading.' },
 ]
-const GESTURE_NAME: Record<Gesture, string> = { right: 'a right turn', left: 'a left turn', nod: 'a nod', shake: 'a shake', wink: 'a wink' }
+const GESTURE_NAME: Record<Gesture, string> = { right: 'a right turn', left: 'a left turn', nod: 'a nod', shake: 'a shake', eyes: 'closing your eyes' }
 const SEEN_MS = 1500 // face steadily in view before the first gesture
 const DONE_MS = 1100 // success moment before the next step
 const isGesture = (id: StepId): id is Gesture => id in GESTURE_NAME
@@ -33,7 +33,7 @@ export default function Welcome() {
   const [success, setSuccess] = useState(false)
   const [miss, setMiss] = useState<string | null>(null)
   const [covers, setCovers] = useState<string[]>([])
-  const [wink, setWink] = useState(0) // live: how far one eye is shut past the other, 1 = counts as a wink
+  const [closed, setClosed] = useState(0) // live: how far through the eyes-closed hold, 1 = done
   const video = useRef<HTMLVideoElement>(null)
   const step = STEPS[i]
   const go = (to: number) => {
@@ -118,7 +118,7 @@ export default function Welcome() {
     let since = 0
     const off = onFrame((f) => {
       setFace(f.found)
-      if (step.id === 'wink' && f.found) setWink(Math.min(1, winkLevel(f)))
+      if (step.id === 'eyes' && f.found) setClosed(eyesClosedLevel(f))
       if (step.id !== 'hello') return
       if (!f.found) since = 0
       else if (!since) since = f.t
@@ -218,9 +218,9 @@ export default function Welcome() {
           {step.id === 'hello' && camera === 'denied' && (
             <p className="welcome-warn">The camera is blocked. Allow it, or use mouse &amp; keyboard.</p>
           )}
-          {step.id === 'wink' && !success && (
-            <span className={`wink-meter${wink >= 1 ? ' hit' : ''}`} role="meter" aria-label="Wink strength" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(wink * 100)}>
-              <span style={{ transform: `scaleX(${wink})` }} />
+          {step.id === 'eyes' && !success && (
+            <span className={`hold-meter${closed >= 1 ? ' hit' : ''}`} role="meter" aria-label="Eyes closed" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(closed * 100)}>
+              <span style={{ transform: `scaleX(${closed})` }} />
             </span>
           )}
           {miss && <p className="welcome-miss">{miss}</p>}
@@ -254,7 +254,7 @@ function Demo({ id, covers }: { id: StepId; covers: string[] }) {
       {covers[k] && <img src={covers[k]} alt="" />}
     </span>
   )
-  if (id === 'wink')
+  if (id === 'eyes')
     return (
       <div className="demo-screen demo-reading">
         {covers[0] && <img src={covers[0]} alt="" />}

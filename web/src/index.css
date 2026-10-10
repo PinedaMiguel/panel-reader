@@ -1351,9 +1351,9 @@ body:has(.reader) .switch-legend, body:has(.welcome) .switch-legend, body:has(.l
 .welcome-caption p { margin: 0; max-width: 40ch; font-size: 1.15rem; line-height: 1.5; color: var(--muted); }
 .welcome-caption .welcome-miss { color: #ffb36b; font-weight: 600; }
 .welcome-caption .welcome-warn { color: #ff8a8a; }
-.wink-meter { width: min(260px, 70vw); height: 12px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
-.wink-meter span { display: block; height: 100%; background: var(--muted); transform-origin: left; transition: transform 0.08s linear; }
-.wink-meter.hit span { background: var(--accent); }
+.hold-meter { width: min(260px, 70vw); height: 12px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
+.hold-meter span { display: block; height: 100%; background: var(--muted); transform-origin: left; transition: transform 0.08s linear; }
+.hold-meter.hit span { background: var(--accent); }
 .welcome-nav { display: flex; gap: 24px; margin-top: 4px; }
 .welcome-nav .btn-link { min-height: 44px; padding: 0 8px; }
 .welcome-start { display: inline-flex; align-items: center; gap: 10px; margin-top: 8px; }

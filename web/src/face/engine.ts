@@ -17,7 +17,7 @@ export type FaceFrame = {
   blink: { l: number; r: number } // 0..1 per eye
 }
 
-export type Gesture = 'nod' | 'shake' | 'left' | 'right' | 'wink' // left/right: the user's own left/right
+export type Gesture = 'nod' | 'shake' | 'left' | 'right' | 'eyes' // left/right: the user's own left/right; eyes: closed ~1 s
 
 type Listener = (f: FaceFrame) => void
 type GestureListener = (g: Gesture) => void
@@ -172,7 +172,7 @@ let cooldownUntil = 0
 function detectGestures(f: FaceFrame) {
   if (!f.found) return
   detectTurn(f)
-  detectWink(f)
+  detectEyes(f)
   history.push(f)
   while (history.length && f.t - history[0].t > WINDOW_MS) history.shift()
   // While turned, or just back from a turn, the swing isn't a shake. 5 frames: slow cameras still count.
@@ -240,35 +240,24 @@ function detectTurn(f: FaceFrame) {
   gestureListeners.forEach((fn) => fn(g))
 }
 
-// Wink = one eye closes clearly more than the other, held briefly. Each eye is measured against its own
-// resting level (some faces rest with one eye lower), and the open eye may squint along, as it does in a
-// real wink: it only has to move much less than the winking one. A blink moves both alike.
-const WINK_MS = 150
-const WINK_MIN = 0.35 // the winking eye closes at least this far past its rest
-const WINK_RATIO = 1.4 // ...and this many times further than the other eye
-const rest = { l: 0.1, r: 0.1 }
-let winkSince = 0
-let winkFired = 0
-// 0..1+, where 1 counts as a wink (also drives the setup's live meter).
-export function winkLevel(f: FaceFrame) {
-  const dl = f.blink.l - rest.l
-  const dr = f.blink.r - rest.r
-  const big = Math.max(dl, dr)
-  const small = Math.max(0.02, Math.min(dl, dr))
-  return Math.min(big / WINK_MIN, big / (WINK_RATIO * small))
-}
-function detectWink(f: FaceFrame) {
-  const { l, r } = f.blink
-  if (Math.max(l, r) < 0.3) {
-    rest.l += (l - rest.l) * 0.03 // both open: learn each eye's resting level
-    rest.r += (r - rest.r) * 0.03
-  }
-  if (winkLevel(f) < 1) {
-    winkSince = 0
+// Eyes closed = both eyes shut for about a second. Far more reliable than a wink (and possible for people
+// who can't wink); an ordinary blink lasts a fraction of the hold, so it never counts. Fires once per
+// closing: open your eyes before it can fire again.
+const CLOSED = 0.5
+export const CLOSE_MS = 900
+let closedSince = 0
+let closedFired = false
+const shut = (f: FaceFrame) => f.blink.l > CLOSED && f.blink.r > CLOSED
+// 0..1: how far through the hold you are (drives the setup's live meter).
+export const eyesClosedLevel = (f: FaceFrame) => (closedSince && shut(f) ? Math.min(1, (f.t - closedSince) / CLOSE_MS) : 0)
+function detectEyes(f: FaceFrame) {
+  if (!shut(f)) {
+    closedSince = 0
+    closedFired = false
     return
   }
-  winkSince ||= f.t
-  if (f.t - winkSince < WINK_MS || f.t - winkFired < 1200) return
-  winkFired = f.t
-  gestureListeners.forEach((fn) => fn('wink'))
+  closedSince ||= f.t
+  if (closedFired || f.t - closedSince < CLOSE_MS) return
+  closedFired = true
+  gestureListeners.forEach((fn) => fn('eyes'))
 }

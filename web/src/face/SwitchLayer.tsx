@@ -4,11 +4,11 @@ import { onGesture, startFace, stopFace, type Gesture } from './engine'
 // Hands-free control for the whole site, the "switch access" way: no pointer to aim and no calibration.
 // Turn your head right/left to move a highlight to the next/previous control, nod to press it, shake to
 // go back. While a comic plays, only deliberate gestures count (an unconscious nod or shake shouldn't
-// stop the show): turns flip panels and a wink toggles audiobook narration. The highlight is real keyboard focus,
+// stop the show): turns flip panels and closing your eyes for a second toggles audiobook narration. The highlight is real keyboard focus,
 // so screen readers announce each control and Tab/mouse keep working alongside.
 
 const SEL = 'button, a[href], [role="button"], input[type="checkbox"], summary, [data-switch-target]'
-const LABEL: Record<Gesture, string> = { right: 'Next →', left: '← Previous', nod: 'Nod: press', shake: 'Shake: back', wink: 'Wink: narrator' }
+const LABEL: Record<Gesture, string> = { right: 'Next →', left: '← Previous', nod: 'Nod: press', shake: 'Shake: back', eyes: 'Eyes closed: narrator' }
 
 // Controls in reading order. Inside an open dialog only the dialog's controls count, like a keyboard.
 function targets(): HTMLElement[] {
@@ -51,7 +51,7 @@ export default function SwitchLayer() {
       if (document.querySelector('[data-face-own]')) return // that screen (the setup, the lineup) handles gestures itself
       const dialog = [...document.querySelectorAll('dialog')].find((d) => d.open)
       const inReader = !!document.querySelector('.reader[data-playing="true"]') && !dialog
-      if (g === 'wink') {
+      if (g === 'eyes') {
         if (!inReader) return
         key('a')
       } else if (inReader && (g === 'nod' || g === 'shake')) return
