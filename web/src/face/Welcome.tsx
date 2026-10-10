@@ -42,8 +42,8 @@ export default function Welcome() {
     setI(Math.max(0, Math.min(STEPS.length - 1, to)))
   }
 
-  // The guide also speaks each instruction (pre-made ElevenLabs clips in /setup-voice, a voice no comic
-  // character uses). If the browser blocks sound before any interaction, it retries once the camera is
+  // The guide also says what to do, in a word or two, and "Nice!" when you do it (pre-made ElevenLabs
+  // clips in /setup-voice, a voice no comic character uses). If the browser blocks sound before any interaction, it retries once the camera is
   // running or on the first click or key press.
   const [voice, setVoice] = useState(true)
   const speaker = useRef<HTMLAudioElement | null>(null)
@@ -58,6 +58,7 @@ export default function Welcome() {
   }
   const retry = () => pending.current && say(pending.current)
   useEffect(() => {
+    if (step.id === 'smile') return // nothing to do there, so nothing to say
     const t = setTimeout(() => say(step.id), 350)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
