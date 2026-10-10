@@ -70,6 +70,19 @@ export default function SwitchLayer() {
     }
   }, [])
 
+  // Always have something highlighted, so the first nod presses a visible control instead of just picking
+  // one (pages, the end of setup and async lists all start with nothing focused). Not in the reader:
+  // there turns flip panels and a nod plays.
+  useEffect(() => {
+    const t = setInterval(() => {
+      const a = document.activeElement
+      if (a && a !== document.body) return
+      if (document.querySelector('.reader') && ![...document.querySelectorAll('dialog')].some((d) => d.open)) return
+      targets().find((el) => el.getBoundingClientRect().top >= 0)?.focus({ preventScroll: true })
+    }, 400)
+    return () => clearInterval(t)
+  }, [])
+
   // A big focus ring on whatever is highlighted (CSS, so it also shows inside dialogs' top layer).
   useEffect(() => {
     document.documentElement.classList.add('switch-on')

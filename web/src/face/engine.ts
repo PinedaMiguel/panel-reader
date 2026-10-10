@@ -199,6 +199,6 @@ function detectTurn(f: FaceFrame) {
   turnSince ||= f.t
   if (f.t - turnSince < HOLD_MS || (turnFired && f.t - turnFired < REPEAT_MS)) return
   turnFired = lastTurn = f.t
-  const g: Gesture = off > 0 ? 'left' : 'right' // yaw + = turned to the user's left
+  const g: Gesture = off > 0 ? 'right' : 'left' // sign checked on a real webcam: yaw + = turned to the user's right
   gestureListeners.forEach((fn) => fn(g))
 }
