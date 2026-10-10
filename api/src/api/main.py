@@ -4,13 +4,15 @@ import asyncio
 import copy
 import hashlib
 import json
+import os
+import secrets
 import shutil
 import re
 import threading
 import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 
 from . import db, gemini, panels, pipeline, storage
@@ -25,6 +27,14 @@ LANGUAGES = {
     "ja": "Japanese", "hi": "Hindi", "zh": "Mandarin Chinese",
 }
 COMIC_ID = re.compile(r"[0-9a-f]{10}")
+
+
+def admin(x_admin_token: str = Header("")) -> None:
+    """Adding comics runs paid models, and only the team curates the library: require ADMIN_TOKEN.
+    With no token configured, uploads are refused (fail closed)."""
+    expected = os.environ.get("ADMIN_TOKEN", "")
+    if not expected or not secrets.compare_digest(x_admin_token.encode(), expected.encode()):
+        raise HTTPException(401, "admin token required")
 
 
 @app.on_event("startup")
@@ -55,7 +65,7 @@ def _start(job_id: str, target_fn) -> dict:
     return {"id": job_id, "job": job_id}
 
 
-@app.post("/api/comics")
+@app.post("/api/comics", dependencies=[Depends(admin)])
 async def create_comic(
     pages: list[UploadFile] = File(...),
     title: str = Form("Untitled comic"),
@@ -74,7 +84,7 @@ async def create_comic(
     return _start(job_id, work)
 
 
-@app.post("/api/comics/{comic_id}/pages")
+@app.post("/api/comics/{comic_id}/pages", dependencies=[Depends(admin)])
 async def add_pages(
     comic_id: str,
     pages: list[UploadFile] = File(...),
