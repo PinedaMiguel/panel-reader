@@ -118,10 +118,26 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
   }
 
   // Listening always turns the pages; audiobook mode only decides whether the narrator speaks.
-  const caption = usePanelAudio(panels[active], comic.characters, listening, audiobook, () => {
-    if (active + 1 < panels.length) setTimeout(() => goTo(active + 1), 600)
-    else setListening(false)
-  })
+  const caption = usePanelAudio(
+    panels[active],
+    comic.characters,
+    listening,
+    audiobook,
+    () => {
+      if (active + 1 < panels.length) setTimeout(() => goTo(active + 1), 600)
+      else setListening(false)
+    },
+    () => setListening(false),
+  )
+
+  // Arriving from the processing view: start listening as the curtain lifts. The click that started
+  // the upload/replay was in this same page session, so the browser allows the audio.
+  useEffect(() => {
+    if (startIndex < 0) return
+    const t = setTimeout(() => setListening(true), 450)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

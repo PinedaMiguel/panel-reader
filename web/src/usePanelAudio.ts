@@ -17,6 +17,7 @@ export function usePanelAudio(
   listening: boolean,
   narration: boolean,
   onDone: () => void,
+  onBlocked?: () => void, // the browser refused to autoplay (no user gesture yet)
 ) {
   const [caption, setCaption] = useState<Caption | null>(null)
 
@@ -60,7 +61,13 @@ export function usePanelAudio(
           current = new Audio(item.audio)
           current.onended = () => resolve()
           current.onerror = () => resolve()
-          current.play().catch(() => resolve())
+          current.play().catch((e) => {
+            if (e?.name === 'NotAllowedError') {
+              cancelled = true // don't race silently through the queue
+              onBlocked?.()
+            }
+            resolve()
+          })
         } else {
           // No rendered clip (quota ran out, or not generated yet): use the browser's voice.
           const u = new SpeechSynthesisUtterance(item.text)
