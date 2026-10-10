@@ -68,6 +68,8 @@ export default function Processing({ job, files, title, onFinish, onBack, leavin
   const [zoom, setZoom] = useState<{ box: Box; page: PageState } | null>(null)
   const [vp, setVp] = useState({ w: window.innerWidth, h: window.innerHeight })
   const skip = useRef(false)
+  const currentRef = useRef<string | null>(null)
+  currentRef.current = current
   // Blob links for the uploaded pages. Created and revoked by the same effect, so React's dev-mode
   // double mount can't hand the director links that were already revoked.
   const urls = useRef<string[]>([])
@@ -209,7 +211,14 @@ export default function Processing({ job, files, title, onFinish, onBack, leavin
       await Promise.all([startPanel && preload(startPanel.image), startPage?.image && preload(startPage.image)])
       const box = page?.boxes.find((b) => b.id === start)
       if (page && box && !cancelled) {
-        setCurrent(page.id)
+        if (currentRef.current !== page.id) {
+          // Multi-page comics: glide back to the page the reader starts on, pause, then zoom.
+          setActivePanel(null)
+          setCurrent(page.id)
+          await new Promise((r) => setTimeout(r, skip.current ? 600 : 1300))
+        }
+        setActivePanel(box.id)
+        await new Promise((r) => setTimeout(r, skip.current ? 0 : 350))
         setZoom({ box, page })
         await new Promise((r) => setTimeout(r, skip.current ? 900 : 1900)) // 1.6 s camera move + a beat
       }
@@ -231,19 +240,24 @@ export default function Processing({ job, files, title, onFinish, onBack, leavin
 
   // Page placement: fitted into the stage area, or (during the hand-off) the reader's camera position.
   const area = { x: 24, y: 88, w: vp.w - (vp.w > 900 ? 420 : 48), h: vp.h - (vp.w > 900 ? 88 + 150 : 88 + 330) }
-  let transform = ''
-  let pageStyle: CSSProperties = {}
-  if (page) {
-    if (zoom) {
-      const [x1, y1, x2, y2] = padded(zoom.box.bbox, page)
+  const currentIndex = Math.max(0, pages.findIndex((p) => p.id === current))
+  const place = (p: PageState, k: number): CSSProperties => {
+    if (zoom && zoom.page.id === p.id) {
+      const [x1, y1, x2, y2] = padded(zoom.box.bbox, p)
       const boxW = Math.min(vp.w - 2 * PAD, MAX_PANEL_W)
       const boxH = vp.h - 2 * PAD
       const s = Math.min(boxW / (x2 - x1), boxH / (y2 - y1))
-      transform = `translate(${vp.w / 2 - ((x1 + x2) / 2) * s}px, ${vp.h / 2 - ((y1 + y2) / 2) * s}px) scale(${s})`
-      pageStyle = { '--blur': `${7 / s}px` } as CSSProperties
-    } else {
-      const s = Math.min(area.w / page.w, area.h / page.h)
-      transform = `translate(${area.x + (area.w - page.w * s) / 2}px, ${area.y + (area.h - page.h * s) / 2}px) scale(${s})`
+      return {
+        transform: `translate(${vp.w / 2 - ((x1 + x2) / 2) * s}px, ${vp.h / 2 - ((y1 + y2) / 2) * s}px) scale(${s})`,
+        '--blur': `${7 / s}px`,
+      } as CSSProperties
+    }
+    // Pages sit side by side; the current one is centred and its neighbours wait just off-stage.
+    const s = Math.min(area.w / p.w, area.h / p.h)
+    const shift = (k - currentIndex) * (area.w + 160)
+    return {
+      transform: `translate(${area.x + (area.w - p.w * s) / 2 + shift}px, ${area.y + (area.h - p.h * s) / 2}px) scale(${s})`,
+      opacity: k === currentIndex && !(zoom && zoom.page.id !== p.id) ? 1 : 0,
     }
   }
 
@@ -281,8 +295,13 @@ export default function Processing({ job, files, title, onFinish, onBack, leavin
         </button>
       </header>
 
-      {page && (
-        <div className="proc-page" style={{ width: page.w, height: page.h, transform, ...pageStyle }}>
+      {pages.map((page, k) => (
+        <div
+          key={page.id}
+          className="proc-page"
+          style={{ width: page.w, height: page.h, ...place(page, k) }}
+          aria-hidden={page.id !== current}
+        >
           <img src={page.url} alt="" />
           {page.boxes.slice(0, page.shown).map((b) => {
             const isZoom = zoom?.box.id === b.id
@@ -303,7 +322,7 @@ export default function Processing({ job, files, title, onFinish, onBack, leavin
             )
           })}
         </div>
-      )}
+      ))}
 
       <aside className="proc-side" aria-live="polite">
         {error ? (
