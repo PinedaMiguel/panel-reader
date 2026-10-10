@@ -126,10 +126,9 @@ Without a domain, the site is served at `https://<ip-with-dashes>.sslip.io`, wit
 
 ```
 api/src/api/   FastAPI app, pipeline, Magi, Gemini, ElevenLabs, Neon (db + storage)
-web/src/       React app: home, scanner, processing visualization, reader, settings
+web/src/       React app: guided setup, lineup, home, processing visualization, reader, settings
 deploy/        Server setup, deploy script, Caddyfile
-samples/       Public-domain comic pages used for testing (see samples/SOURCES.md)
-Vignettes/     Pages from the Y: The Last Man demo comic
+samples/       Source pages of the comics in the library (public domain or CC BY; see samples/SOURCES.md)
 neon.ts        Neon infrastructure config (the uploads bucket)
 ```
 
@@ -146,5 +145,6 @@ neon.ts        Neon infrastructure config (the uploads bucket)
 - **Fonts:** OpenDyslexic, Atkinson Hyperlegible, Bangers and Bricolage Grotesque, all self-hosted through Fontsource under the SIL Open Font License.
 - **Design reference:** the reader's motion-comic feel follows the Sapporo Breweries 150th-anniversary story site, and the home page layout follows GlobalComix.
 - **Comics:**
-  - *Blue Bolt* #5 (1940), *Little Nemo in Slumberland* (1905) and *Jungle Comics* #16 (1941) are public domain, from Wikimedia Commons. Sources are listed in `samples/SOURCES.md`.
-  - The *Y: The Last Man* excerpt (Vertigo/DC) is used for this non-commercial hackathon demo with the organizers' OK.
+  - *Little Nemo in Slumberland* (Winsor McCay, 1905) and "Artist of Evil" (*Adventures Into the Unknown* #36, 1952) are public domain, from Wikimedia Commons.
+  - *Pepper&Carrot* episode 6, "The Potion Contest", is by David Revoy ([peppercarrot.com](https://www.peppercarrot.com)), licensed CC BY 4.0.
+  - Sources for every page are listed in `samples/SOURCES.md`.

@@ -1,6 +1,6 @@
 """Fill a comic's script.json with narration, voice casting and audio.
 
-    uv run --env-file ../.env python -m api.narrate ../web/public/vignettes
+    uv run --env-file ../.env python -m api.narrate ../web/public/<comic-folder>
 
 Gemini only fills what is missing, so hand-written dialogue is kept. Audio is cached by
 content hash, so re-running only pays for text that changed.
