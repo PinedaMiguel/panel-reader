@@ -11,14 +11,14 @@ import SwitchLayer from './SwitchLayer'
 type StepId = 'hello' | Gesture | 'smile' | 'ready'
 type Step = { id: StepId; act: GuideAction; title: string; line: string }
 const STEPS: Step[] = [
-  { id: 'hello', act: 'idle', title: 'Hi! Let’s see you', line: 'Sit so your face fits the frame. Nothing is recorded.' },
-  { id: 'right', act: 'right', title: 'Turn right', line: 'Hold it, and the highlight moves to the next show.' },
-  { id: 'left', act: 'left', title: 'Turn left', line: 'Hold it to go back one.' },
-  { id: 'nod', act: 'nod', title: 'Nod', line: 'Presses whatever is highlighted.' },
-  { id: 'shake', act: 'shake', title: 'Shake', line: 'Closes it and goes back.' },
-  { id: 'eyes', act: 'eyes', title: 'Close your eyes', line: 'Keep them closed for a second. While a comic plays, that turns the narrator on or off.' },
+  { id: 'hello', act: 'idle', title: 'Look at the camera', line: 'Look at the camera so it can see your face. Nothing is recorded.' },
+  { id: 'right', act: 'right', title: 'Turn right', line: 'Turn your head right and hold it to move to the next show.' },
+  { id: 'left', act: 'left', title: 'Turn left', line: 'Turn your head left and hold it to go back to the previous show.' },
+  { id: 'nod', act: 'nod', title: 'Nod', line: 'Nod your head to select what’s highlighted.' },
+  { id: 'shake', act: 'shake', title: 'Shake', line: 'Shake your head to close something and go back.' },
+  { id: 'eyes', act: 'eyes', title: 'Close your eyes', line: 'Close your eyes for a second to turn the narrator on or off while a comic plays.' },
   { id: 'smile', act: 'smile', title: 'Just enjoy it', line: 'Your smiles fill a heart meter that picks what to read next. Nothing to do here.' },
-  { id: 'ready', act: 'nod', title: 'You’re set', line: 'Nod to start reading.' },
+  { id: 'ready', act: 'nod', title: 'You’re set', line: 'Nod your head to start reading.' },
 ]
 const GESTURE_NAME: Record<Gesture, string> = { right: 'a right turn', left: 'a left turn', nod: 'a nod', shake: 'a shake', eyes: 'closing your eyes' }
 const SEEN_MS = 1500 // face steadily in view before the first gesture
