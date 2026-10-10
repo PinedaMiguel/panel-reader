@@ -1,0 +1,21 @@
+# Render Blueprint: one web service. The API serves the built web app; it runs reading-only
+# (MAGI=off, no model keys) and needs only the Neon database and storage credentials.
+services:
+  - type: web
+    name: panel-reader
+    runtime: docker
+    plan: free
+    region: ohio # next to Neon (AWS us-east-2)
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/comics
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_ENDPOINT_URL_S3
+        sync: false
+      - key: AWS_REGION
+        sync: false

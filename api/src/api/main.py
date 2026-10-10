@@ -14,6 +14,7 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
 
 from . import db, gemini, pipeline, storage
 
@@ -262,3 +263,10 @@ def get_comic(comic_id: str, lang: str | None = None):
 @app.get("/api/comics")
 def list_comics():
     return db.list_comics()
+
+
+# In production the API also serves the built web app: one service, one origin (live streams need no
+# proxy). Registered last, so every /api route above wins. In development Vite serves the app instead.
+WEB_DIST = Path(os.environ.get("WEB_DIST", Path(__file__).parents[3] / "web" / "dist"))
+if WEB_DIST.is_dir():
+    app.mount("/", StaticFiles(directory=WEB_DIST, html=True), name="web")

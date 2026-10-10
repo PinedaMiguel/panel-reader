@@ -1,0 +1,11 @@
+# Never ship secrets or local state into the image.
+.env
+.env.*
+**/.venv
+**/node_modules
+**/__pycache__
+**/dist
+media
+output
+samples
+.git
