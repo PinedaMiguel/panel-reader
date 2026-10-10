@@ -80,7 +80,7 @@ export default function SwitchLayer() {
   useEffect(() => {
     const t = setInterval(() => {
       const a = document.activeElement
-      if (a && a !== document.body) return
+      if ((a && a !== document.body) || document.querySelector('[data-face-practice]')) return
       if (document.querySelector('.reader[data-playing="true"]') && ![...document.querySelectorAll('dialog')].some((d) => d.open)) return
       targets().find((el) => el.getBoundingClientRect().top >= 0)?.focus({ preventScroll: true })
     }, 400)
