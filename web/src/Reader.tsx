@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import Finale from './Finale'
 import PageView from './PageView'
 import SettingsPanel from './SettingsPanel'
@@ -20,7 +20,6 @@ type Props = {
 const SPEAKER_COLORS = ['#E69F00', '#56B4E9', '#009E73', '#F0E442', '#CC79A7', '#D55E00', '#0072B2']
 
 const CAPTION_SPACE = 150
-const OVERVIEW = -0.5 // the whole-page stop between the title card (-1) and panel 1 (0)
 const OVERVIEW_HOLD_MS = 2500 // when playing, how long the whole page shows before zooming in
 const BLEED = 40 // .camera extends this far past the viewport so its blur has no hard edge
 
@@ -58,17 +57,20 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
   )
   const panels = entries.map((e) => e.panel)
   const startIndex = startAt ? entries.findIndex((e) => e.panel.id === startAt) : -1
-  const hasOverview = !!entries[0]?.page.image
+  // Whole-page stops: one before the first panel of each page (that has a page image), numbered
+  // "first panel index − 0.5". The reader holds on them while playing, then zooms into the panel.
+  const pageStops = useMemo(
+    () => entries.flatMap((e, i) => (e.page.image && (i === 0 || entries[i - 1].page.id !== e.page.id) ? [i - 0.5] : [])),
+    [entries],
+  )
+  const isPageStop = (a: number) => a % 1 !== 0
+  const pageOf = (stop: number) => entries[stop + 0.5].page.id
   // Arriving from the processing view lands on the whole start page, which then zooms into its panel.
-  const [active, setActive] = useState(startIndex >= 0 ? (hasOverview ? OVERVIEW : startIndex) : -1)
+  const startStop = startIndex >= 0 && pageStops.includes(startIndex - 0.5) ? startIndex - 0.5 : startIndex
+  const [active, setActive] = useState(startStop)
   // Arriving from the processing view: the first frame must match its last one exactly, so no fade-ins.
   const [arrived, setArrived] = useState(startIndex >= 0)
-  const overview = useRef<HTMLElement | null>(null)
-  // Which page the whole-page stop shows, and which panel it zooms into.
-  const overviewTarget = useRef({
-    centerId: (entries[startIndex] ?? entries[0])?.page.id ?? '',
-    focusIndex: Math.max(startIndex, 0),
-  })
+  const pageRefs = useRef(new Map<number, HTMLElement | null>())
   const refs = useRef<(HTMLElement | null)[]>([])
   const cover = useRef<HTMLElement | null>(null)
   const [playing, setPlaying] = useState(false)
@@ -83,13 +85,16 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
   const pageSizes = usePageSizes(comic.pages, knownSizes)
 
   // The visible "shot": incoming panel plus the outgoing one, moving the way the panels sit on the page.
-  const [shot, setShot] = useState<Shot>({ cur: hasOverview ? -1 : startIndex, prev: null, dx: 0, dy: 0 })
+  const [shot, setShot] = useState<Shot>({ cur: isPageStop(startStop) ? -1 : startStop, prev: null, dx: 0, dy: 0 })
   useLayoutEffect(() => {
-    if (startIndex >= 0) (hasOverview ? overview.current : refs.current[startIndex])?.scrollIntoView({ behavior: 'instant' })
+    if (startIndex >= 0) {
+      const el = isPageStop(startStop) ? pageRefs.current.get(startStop) : refs.current[startIndex]
+      el?.scrollIntoView({ behavior: 'instant' })
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   useEffect(() => {
-    if (active === shot.cur || active === OVERVIEW) return
+    if (active === shot.cur || isPageStop(active)) return
     setArrived(false)
     const d = Math.min(vp.w, vp.h) * 0.6
     const [vx, vy] = direction(entries[shot.cur], entries[active], shot.cur, active)
@@ -117,63 +122,61 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
       { threshold: 0.6 },
     )
     if (cover.current) io.observe(cover.current)
-    if (overview.current) io.observe(overview.current)
+    pageRefs.current.forEach((el) => el && io.observe(el))
     refs.current.forEach((el) => el && io.observe(el))
     return () => io.disconnect()
-  }, [panels.length])
+  }, [panels.length, pageStops])
 
   const goTo = (i: number) => {
     const el =
-      i === OVERVIEW && hasOverview ? overview.current
+      isPageStop(i) ? pageRefs.current.get(i)
       : i < 0 ? cover.current
       : refs.current[Math.min(panels.length - 1, i)]
     el?.scrollIntoView({ behavior: 'smooth' })
   }
-  // Reading order of the stops: title card, whole first page, then each panel.
+  // Reading order of the stops: title card, then for each page its whole-page stop and its panels.
+  const order = [-1, ...entries.flatMap((_, i) => (pageStops.includes(i - 0.5) ? [i - 0.5, i] : [i]))]
   const step = (dir: number) => {
-    const order = [-1, ...(hasOverview ? [OVERVIEW] : []), ...panels.map((_, i) => i)]
     const k = order.indexOf(active)
     goTo(order[Math.max(0, Math.min(order.length - 1, k + dir))])
   }
 
   const togglePlay = () => {
-    if (!playing && active === -1) goTo(hasOverview ? OVERVIEW : 0) // start from the first page, not the title card
+    if (!playing && active === -1) goTo(order[1]) // start from the first page, not the title card
     setPlaying((v) => !v)
   }
 
-  // Playing on the whole-page stop: let the page be seen for a moment, then zoom into its panel.
+  // Playing on a whole-page stop: let the page be seen for a moment, then zoom into its first panel.
   useEffect(() => {
-    if (!playing || active !== OVERVIEW) return
-    const t = setTimeout(() => goTo(overviewTarget.current.focusIndex), OVERVIEW_HOLD_MS)
+    if (!playing || !isPageStop(active)) return
+    const t = setTimeout(() => goTo(active + 0.5), OVERVIEW_HOLD_MS)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playing, active])
 
-  // The whole-page view and its camera moves: zoom in from the page to a panel, out from a panel to the page.
+  // The whole-page view and its camera moves: zoom in from a page to its panel, out from a panel to a page.
   const [pv, setPv] = useState<{ zoomed: boolean; centerId: string; focusIndex: number } | null>(
-    active === OVERVIEW ? { zoomed: false, ...overviewTarget.current } : null,
+    isPageStop(active) ? { zoomed: false, centerId: pageOf(active), focusIndex: active + 0.5 } : null,
   )
   const prevActive = useRef(active)
   useEffect(() => {
     const prev = prevActive.current
     prevActive.current = active
-    if (!hasOverview || prev === active) return
-    if (active === OVERVIEW) {
-      const target = overviewTarget.current
-      if (prev < 0) return setPv({ zoomed: false, ...target })
-      // Back from a panel: start framed on it, then pull out to the whole page.
+    if (prev === active) return
+    if (isPageStop(active)) {
+      const target = { centerId: pageOf(active), focusIndex: active + 0.5 }
+      if (prev < 0 || isPageStop(prev)) return setPv({ zoomed: false, ...target })
+      // From a panel (the end of the previous page, or going back): start framed on it, then pull out
+      // to the whole page, sliding along the strip of pages if it's a different one.
       setPv({ zoomed: true, centerId: target.centerId, focusIndex: prev })
       const r = requestAnimationFrame(() =>
         requestAnimationFrame(() => setPv((p) => p && { ...p, zoomed: false, focusIndex: target.focusIndex })),
       )
       return () => cancelAnimationFrame(r)
     }
-    if (prev === OVERVIEW && active >= 0) {
+    if (isPageStop(prev) && active >= 0) {
       setPv((p) => ({ centerId: p?.centerId ?? entries[active].page.id, focusIndex: active, zoomed: true }))
-      const t = setTimeout(() => {
-        setPv(null) // the reader underneath now shows exactly this frame
-        overviewTarget.current = { centerId: entries[0].page.id, focusIndex: 0 }
-      }, 1700)
+      const t = setTimeout(() => setPv(null), 1700) // the reader underneath now shows exactly this frame
       return () => clearTimeout(t)
     }
     setPv(null)
@@ -187,7 +190,8 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
     playing,
     audiobook,
     () => {
-      if (active + 1 < panels.length) setTimeout(() => goTo(active + 1), 600)
+      // Next stop: the next panel, or the next page's whole-page view first.
+      if (active + 1 < panels.length) setTimeout(() => step(1), 600)
       else {
         // End of the comic: a beat on the last panel, then pull back to the full page(s).
         setPlaying(false)
@@ -199,8 +203,8 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
 
   // Arriving on the whole-page view: tell the processing view once the page is painted, so it can fade.
   useEffect(() => {
-    if (startIndex < 0 || !hasOverview || !onReady) return
-    const center = comic.pages.find((p) => p.id === overviewTarget.current.centerId)
+    if (startIndex < 0 || !isPageStop(startStop) || !onReady) return
+    const center = comic.pages.find((p) => p.id === pageOf(startStop))
     if (!center?.image) return onReady()
     const img = new Image()
     img.onload = img.onerror = () => requestAnimationFrame(() => requestAnimationFrame(() => onReady()))
@@ -333,23 +337,28 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
         </div>
       </section>
 
-      {hasOverview && (
-        <section ref={overview} data-index={OVERVIEW} className="panel" aria-label="Whole first page">
-          <p className="sr-only">The whole first page.</p>
-        </section>
-      )}
-
       {/* Scroll track: one snap point per panel. What you see is drawn on the stage below. */}
       {entries.map(({ panel }, i) => (
-        <section
-          key={panel.id}
-          ref={(el) => { refs.current[i] = el }}
-          data-index={i}
-          className="panel"
-          aria-label={`Panel ${i + 1} of ${panels.length}`}
-        >
-          <p className="sr-only">{panel.scene}</p>
-        </section>
+        <Fragment key={panel.id}>
+          {pageStops.includes(i - 0.5) && (
+            <section
+              ref={(el) => { pageRefs.current.set(i - 0.5, el) }}
+              data-index={i - 0.5}
+              className="panel"
+              aria-label={`Page ${comic.pages.findIndex((p) => p.id === entries[i].page.id) + 1}, whole page`}
+            >
+              <p className="sr-only">The whole page.</p>
+            </section>
+          )}
+          <section
+            ref={(el) => { refs.current[i] = el }}
+            data-index={i}
+            className="panel"
+            aria-label={`Panel ${i + 1} of ${panels.length}`}
+          >
+            <p className="sr-only">{panel.scene}</p>
+          </section>
+        </Fragment>
       ))}
 
       <div className="stage" aria-hidden="true" style={{ paddingBottom: PAD + reserved }}>
@@ -435,7 +444,9 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
       )}
 
       <div className="progress" aria-hidden="true">
-        {active === OVERVIEW ? 'Page 1' : active < 0 ? 'Cover' : `${active + 1} / ${panels.length}`}
+        {isPageStop(active)
+          ? `Page ${comic.pages.findIndex((p) => p.id === pageOf(active)) + 1}`
+          : active < 0 ? 'Cover' : `${active + 1} / ${panels.length}`}
       </div>
       <div className="sr-only" aria-live="polite">
         {active >= 0 && (
