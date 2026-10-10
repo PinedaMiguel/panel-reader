@@ -195,7 +195,7 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
       else {
         // End of the comic: a beat on the last panel, then pull back to the full page(s).
         setPlaying(false)
-        setTimeout(() => setFinale(true), 1500)
+        setTimeout(() => setFinale(true), 600)
       }
     },
     () => setPlaying(false),
