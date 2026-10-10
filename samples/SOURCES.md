@@ -13,11 +13,12 @@ Public-domain files come from Wikimedia Commons, where each is marked **Public d
 | little-nemo/1905-10-22.jpg, 1905-10-29.jpg | Winsor McCay, *Little Nemo in Slumberland*, Oct 22 and Oct 29 1905 (with 10-15: the first three episodes) | https://commons.wikimedia.org/wiki/File:Little_Nemo_1905-10-22.jpg, https://commons.wikimedia.org/wiki/File:Little_Nemo_1905-10-29.jpg | Public domain (pre-1930) |
 | funny-animal/bernie-p1..3.jpg | "Bernie the Fox" by Joe Oriolo, *Coo Coo Comics* #3 (Nedor, Feb 1943), pages 1–3 | https://commons.wikimedia.org/wiki/File:Coo_Coo_Comics_-_Issue_3_(February_1943)_-_Bernie_the_Fox_-_Page_1.jpg | Public domain (Commons) |
 | funny-animal/superfox-p1..3.jpg | "Superfox Versus Needle-Noggin", *Daffy Tunes* #12 (Aug 1947), pages 1–3 | https://commons.wikimedia.org/wiki/File:Daffy_Tunes_-_Issue_12_(August_1947)_-_Superfox_Versus_Needle-Noggin_-_Page_1.jpg | Public domain (Commons) |
+| western/pecos-bill-wf6-p1..3.jpg | "A Rootin' Tootin' Story of Pecos Bill", *Western Fighters* #6 (Hillman, Feb 1949), pages 1–3 (complete story) | https://commons.wikimedia.org/wiki/File:Pecos_Bill_in_Western_Fighters_6_page1.jpg | Public domain (Commons) |
 | horror/weird-wager-p1..3.jpg | "The Weird Wager", *Out of the Night* #9 (ACG, June 1953), pages 1–3 | https://commons.wikimedia.org/wiki/File:WW001.jpg (via comicbookplus.com/?dlid=14090) | Public domain (Commons) |
 
-Held back (downloaded, not processed): "Six-Gun Smith" by Wally Wood, *Western Crime Busters* #7 (1951). Public domain, but page 2 shows a man tearing a woman's dress, so it waits for a decision.
 
 Removed from the project (2026-10-10, archived outside the repo): *Blue Bolt* #5 p4 and *Jungle Comics* #16 p60 (single pages), and the *Y: The Last Man* excerpt (copyrighted). The library now uses only public-domain or permissively licensed comics.
 
-Rejected: *America's Best Comics* #18 (Black Terror) — public domain, but WWII dialogue contains ethnic slurs the app would read aloud.
+Rejected: "Six-Gun Smith" (Wally Wood, *Western Crime Busters* #7, 1951): public domain, but page 2 shows a man tearing a woman's dress.
+*America's Best Comics* #18 (Black Terror) — public domain, but WWII dialogue contains ethnic slurs the app would read aloud.
 Avoid *Little Nemo* episodes featuring "Impie" (racist caricature, from 1906 on).
