@@ -15,8 +15,9 @@ echo "→ building web"
 echo "→ uploading"
 eval $RSYNC --exclude .venv --exclude __pycache__ api/ root@$IP:/srv/panel-reader/api/
 eval $RSYNC web/dist/ root@$IP:/srv/panel-reader/web/
-# Secrets the server needs (not the Vultr key).
-grep -v '^VULTR_API_KEY=' .env | $SSH 'cat > /srv/panel-reader/.env && chmod 600 /srv/panel-reader/.env'
+# Reading-only server: it gets the Neon database and storage credentials and nothing else. No Gemini or
+# ElevenLabs keys (it serves what's already stored) and no ADMIN_TOKEN (uploads are refused outright).
+grep -E '^(DATABASE_URL|AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|AWS_ENDPOINT_URL_S3|AWS_REGION)=' .env | $SSH 'cat > /srv/panel-reader/.env && chmod 600 /srv/panel-reader/.env'
 scp -q -i "$HOME/.ssh/knighthacks_vultr" deploy/Caddyfile root@$IP:/etc/caddy/Caddyfile
 
 echo "→ installing and restarting"

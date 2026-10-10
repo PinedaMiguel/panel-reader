@@ -111,6 +111,8 @@ deploy/deploy.sh <server-ip> [domain]              # build, upload, install, res
 
 Without a domain, the site is served at `https://<ip-with-dashes>.sslip.io`, with HTTPS from Let's Encrypt via Caddy.
 
+The server also runs **without any model API keys**: `deploy.sh` sends it only the Neon credentials (`DATABASE_URL` and the `AWS_*` storage keys). It serves everything already stored (scripts, voices, sound effects, previews and translations); with no Gemini or ElevenLabs key it offers only translations a comic already has, and with no `ADMIN_TOKEN` it refuses uploads.
+
 The server runs **without Magi v2** (`MAGI=off`, installed with `uv sync --no-group magi`), so it needs no PyTorch and about 1–2 GB of RAM. Everything viewers do (browsing, previews, reading, translations) works without it. New comics are added on a machine that has Magi installed (the default for `uv sync` locally); a never-seen page sent to a server without Magi fails before any paid model call, while re-uploading already-processed pages still replays them from cache. To host anywhere else, run the API the same way:
 
 ```

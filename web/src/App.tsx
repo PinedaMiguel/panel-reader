@@ -66,7 +66,8 @@ export default function App() {
   }
 
   useEffect(() => {
-    if (id) fetch('/api/languages').then((r) => r.json()).then(setLanguages).catch(() => {})
+    // Per comic: a server without model keys only offers translations this comic already has.
+    if (id) fetch(`/api/languages?comic=${id}`).then((r) => r.json()).then(setLanguages).catch(() => {})
   }, [id])
 
   useEffect(() => {

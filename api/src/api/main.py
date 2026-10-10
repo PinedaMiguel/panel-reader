@@ -27,6 +27,9 @@ LANGUAGES = {
     "ja": "Japanese", "hi": "Hindi", "zh": "Mandarin Chinese",
 }
 COMIC_ID = re.compile(r"[0-9a-f]{10}")
+# A reading-only server can run on the database alone (no model keys): it serves what is already stored
+# (scripts, audio, previews, translations) and offers nothing that would need a model call.
+CAN_GENERATE = bool(os.environ.get("GEMINI_API_KEY") and os.environ.get("ELEVENLABS_API_KEY"))
 
 
 def admin(x_admin_token: str = Header("")) -> None:
@@ -158,6 +161,8 @@ async def job_events(job_id: str):
 
 @app.post("/api/comics/{comic_id}/translations")
 def create_translation(comic_id: str, lang: str = Form(...), audio: bool = Form(True)):
+    if not CAN_GENERATE:
+        raise HTTPException(503, "translations can't be made on this server")
     if lang not in LANGUAGES or not COMIC_ID.fullmatch(comic_id) or not db.query(
         "select 1 from comics where id = $1", comic_id
     ):
@@ -173,8 +178,12 @@ def create_translation(comic_id: str, lang: str = Form(...), audio: bool = Form(
 
 
 @app.get("/api/languages")
-def languages():
-    return LANGUAGES
+def languages(comic: str | None = None):
+    """Languages a comic can be read in. Without model keys, only the translations it already has."""
+    if CAN_GENERATE:
+        return LANGUAGES
+    have = db.languages(comic) if comic and COMIC_ID.fullmatch(comic) else []
+    return {code: name for code, name in LANGUAGES.items() if code in have}
 
 
 @app.get("/api/comics/{comic_id}/events")
@@ -207,6 +216,8 @@ def comic_preview(comic_id: str):
         raise HTTPException(404)
     pv = db.get_preview(comic_id)
     if not pv:
+        if not CAN_GENERATE:
+            raise HTTPException(503, "preview not made yet")
         pv = gemini.preview(comic).model_dump()
         db.save_preview(comic_id, pv)
     panels_by_id = {p["id"]: p for page in comic["pages"] for p in page["panels"]}

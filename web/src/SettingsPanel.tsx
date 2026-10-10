@@ -56,7 +56,7 @@ export default function SettingsPanel({ open, onClose, languages, translating }:
 
       <Choice label="Colours" value={s.color} options={COLORS} onPick={(color) => set({ color })} />
 
-      {languages && (
+      {languages && Object.keys(languages).length > 0 && (
         <Choice
           label="Language"
           value={s.lang}
