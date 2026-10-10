@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { onGesture } from './face/engine'
+import { onGesture, pauseGestures } from './face/engine'
 import { useHeart } from './face/heart'
 import { useSettings } from './settings'
 import Teaser, { teaserMs, type TeaserData } from './Teaser'
@@ -71,6 +71,9 @@ export default function Lineup({ comics, onDone }: { comics: LineupShow[]; onDon
     if (!counting && show) setScores((s) => ({ ...s, [show.id]: Math.round(score.current) }))
     setI(Math.max(0, Math.min(picks.length, to)))
   }
+
+  // A new preview (or the countdown) on screen: give the head a moment before gestures count.
+  useEffect(() => pauseGestures(), [i])
 
   // Each preview runs for its teaser's length, then hands over to the next.
   useEffect(() => {

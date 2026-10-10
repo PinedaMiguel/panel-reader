@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react'
-import { onGesture } from './face/engine'
+import { onGesture, pauseGestures } from './face/engine'
 import { loadHearts } from './face/heart'
 import { freshLineup, play } from './Lineup'
 import { upNext, type Listed } from './recommend'
@@ -14,6 +14,8 @@ export default function UpNext({ comicId, onStay }: { comicId: string; onStay: (
   const [pick, setPick] = useState<ReturnType<typeof upNext>>(null)
   const [done, setDone] = useState<Listed | null>(null)
   const [left, setLeft] = useState(COUNTDOWN_S)
+
+  useEffect(() => pauseGestures(), [])
 
   useEffect(() => {
     fetch('/api/comics')

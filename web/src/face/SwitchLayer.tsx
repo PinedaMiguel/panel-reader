@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { onGesture, startFace, stopFace, type Gesture } from './engine'
+import { controlState, onControlState, onGesture, pauseGestures, startFace, stopFace, toggleManualPause, type ControlState, type Gesture } from './engine'
 
 // Hands-free control for the whole site, the "switch access" way: no pointer to aim and no calibration.
 // Turn your head right/left to move a highlight to the next/previous control, nod to press it, shake to
@@ -30,11 +30,35 @@ function move(by: 1 | -1) {
   next.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
 }
 
+// What the face engine is doing right now, always on screen so nobody wonders why a gesture did nothing.
+const STATE: Record<ControlState, string> = {
+  ready: 'Ready',
+  wait: 'Hold still…',
+  talking: 'Talking: nods paused',
+  away: 'Paused: look at the screen',
+  others: 'Paused: someone else is in view',
+  paused: 'Paused: press H to resume',
+}
+
 const key = (k: string) => window.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }))
 
 export default function SwitchLayer() {
   const [status, setStatus] = useState<'starting' | 'ready' | 'denied'>('starting')
   const [toast, setToast] = useState<string | null>(null)
+  const [control, setControl] = useState<ControlState>(controlState)
+
+  // Hands-free control starting (end of setup, a page load): the nod that got you here doesn't count.
+  useEffect(() => {
+    pauseGestures()
+    const off = onControlState(setControl)
+    // H: the presenter's pause, for talking to people without the page reacting.
+    const h = (e: KeyboardEvent) => e.isTrusted && (e.key === 'h' || e.key === 'H') && !(e.target instanceof HTMLInputElement) && toggleManualPause()
+    window.addEventListener('keydown', h)
+    return () => {
+      off()
+      window.removeEventListener('keydown', h)
+    }
+  }, [])
 
   useEffect(() => {
     let alive = true
@@ -99,6 +123,11 @@ export default function SwitchLayer() {
         <p className="switch-toast">Camera unavailable: hands-free mode needs camera access.</p>
       ) : (
         toast && <p className="switch-toast">{toast}</p>
+      )}
+      {status === 'ready' && (
+        <p className={`switch-state ${control}`} role="status">
+          <span aria-hidden="true" /> {STATE[control]}
+        </p>
       )}
       <p className="switch-legend" aria-hidden="true">
         <b>Turn</b> ← → move · <b>Nod</b> press · <b>Shake</b> back

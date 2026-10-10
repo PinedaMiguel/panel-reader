@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useSettings } from '../settings'
-import { cameraStream, onFrame, onGesture, startFace, stopFace, eyesClosedLevel, type Gesture } from './engine'
+import { cameraStream, onFrame, onGesture, pauseGestures, startFace, stopFace, eyesClosedLevel, type Gesture } from './engine'
 import FaceGuide, { CYCLE_S, type GuideAction } from './FaceGuide'
 import SwitchLayer from './SwitchLayer'
 
@@ -37,6 +37,7 @@ export default function Welcome() {
   const video = useRef<HTMLVideoElement>(null)
   const step = STEPS[i]
   const go = (to: number) => {
+    pauseGestures(700) // the gesture just practised mustn't count for the next step
     setSuccess(false)
     setMiss(null)
     setI(Math.max(0, Math.min(STEPS.length - 1, to)))

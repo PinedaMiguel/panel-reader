@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import Teaser, { type TeaserData } from './Teaser'
+import { pauseGestures } from './face/engine'
 
 // "What to watch next": a comic's title page. A trailer-style teaser (a few key panels and one voiced
 // line) above a spoiler-free synopsis, tags, cast and length, so you know the story before committing.
@@ -23,6 +24,7 @@ export default function Preview({ id, title, onClose, onReplay }: { id: string; 
 
   useEffect(() => {
     ref.current?.showModal()
+    pauseGestures() // the nod that opened it mustn't press Play
     let alive = true
     fetch(`/api/comics/${id}/preview`)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
@@ -36,7 +38,7 @@ export default function Preview({ id, title, onClose, onReplay }: { id: string; 
   const meta = data && `${data.minutes} min · ${data.pages} page${data.pages === 1 ? '' : 's'} · ${data.panels} panels`
 
   return (
-    <dialog ref={ref} className="preview" onClose={onClose} aria-labelledby="preview-title">
+    <dialog ref={ref} className="preview" onClose={() => (pauseGestures(), onClose())} aria-labelledby="preview-title">
       <Teaser data={data} waiting={failed ? undefined : 'Writing a spoiler-free synopsis…'} />
 
       <div className="preview-body">

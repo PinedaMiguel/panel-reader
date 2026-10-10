@@ -15,6 +15,8 @@ export type FaceFrame = {
   browDown: number // 0..1
   sneer: number // 0..1
   blink: { l: number; r: number } // 0..1 per eye
+  jaw: number // 0..1 mouth open (moving = talking)
+  faces: number // faces in view (a second one pauses control)
 }
 
 export type Gesture = 'nod' | 'shake' | 'left' | 'right' | 'eyes' // left/right: the user's own left/right; eyes: closed ~1 s
@@ -77,7 +79,7 @@ async function init() {
     landmarker = await FaceLandmarker.createFromOptions(files, {
       baseOptions: { modelAssetPath: '/mediapipe/face_landmarker.task', delegate: 'GPU' },
       runningMode: 'VIDEO',
-      numFaces: 1,
+      numFaces: 2, // a second face (someone leaning in) pauses control
       outputFaceBlendshapes: true,
       outputFacialTransformationMatrixes: true,
     })
@@ -129,7 +131,7 @@ function toFrame(r: ReturnType<FaceLandmarker['detectForVideo']>, t: number): Fa
   const lm = r.faceLandmarks?.[0]
   const shapes = r.faceBlendshapes?.[0]?.categories
   if (!lm || !shapes) {
-    return { t, found: false, yaw: 0, pitch: 0, gaze: { x: 0, y: 0 }, smile: 0, eyeWide: 0, browDown: 0, sneer: 0, blink: { l: 0, r: 0 } }
+    return { t, found: false, yaw: 0, pitch: 0, gaze: { x: 0, y: 0 }, smile: 0, eyeWide: 0, browDown: 0, sneer: 0, blink: { l: 0, r: 0 }, jaw: 0, faces: 0 }
   }
   const b = (name: string) => shapes.find((c) => c.categoryName === name)?.score ?? 0
   // Head rotation from the facial transformation matrix (column-major 4x4).
@@ -162,23 +164,168 @@ function toFrame(r: ReturnType<FaceLandmarker['detectForVideo']>, t: number): Fa
     browDown: (b('browDownLeft') + b('browDownRight')) / 2,
     sneer: (b('noseSneerLeft') + b('noseSneerRight')) / 2,
     blink: { l: b('eyeBlinkLeft'), r: b('eyeBlinkRight') },
+    jaw: b('jawOpen'),
+    faces: r.faceLandmarks?.length ?? 0,
   }
 }
 
-// Nod = up-down swing of the head (pitch), shake = left-right (yaw), within ~1.2 s, the other axis steady.
-const WINDOW_MS = 1200
+// ---- Gestures ----
+// Every gesture passes one gate (fire). Nothing acts while control is paused (looking away, face lost,
+// a second face, the presenter's H key), during the grace after a screen change, or before the head has
+// re-armed: back in the centre and still after the previous gesture. So one movement is one action, a
+// leftover nod after a screen change does nothing, and resting never repeats anything. Nods and shakes
+// also wait while you're talking (people nod along as they speak); turns don't, so a demo can be narrated.
+
+export type ControlState = 'ready' | 'wait' | 'talking' | 'away' | 'others' | 'paused'
+const WINDOW_MS = 1200 // nod/shake window
+const ARM_MS = 400 // centred and still this long re-arms
+const STILL_DEG = 4
+const TURN_DEG = 16
+const AWAY_DEG = 38 // turned further than this = looking at someone else, not a gesture
+const HOLD_MS = 350
+const RESUME_MS = 1000 // facing the screen this long after looking away resumes control
+const TALK_MS = 1000
+const POSTURE_MS = 12000
 const history: FaceFrame[] = []
-let cooldownUntil = 0
+let armed = false
+let graceUntil = 0
+let manual = false
+let away: 'away' | 'others' | null = null
+let backSince = 0
+let lostSince = 0
+let talkingUntil = 0
+let state: ControlState = 'wait'
+let lastT = 0 // time of the latest frame, so pauses line up with the frames they apply to
+const stateListeners = new Set<(s: ControlState) => void>()
+
+export const controlState = () => state
+export function onControlState(fn: (s: ControlState) => void) {
+  stateListeners.add(fn)
+  return () => stateListeners.delete(fn)
+}
+// A new screen: ignore gestures for a moment, then wait for the head to re-arm.
+export function pauseGestures(ms = 1200) {
+  graceUntil = Math.max(performance.now(), lastT) + ms
+  armed = false
+}
+// The presenter's H key: freeze hands-free control while talking to people, and back.
+export function toggleManualPause() {
+  manual = !manual
+  armed = false
+  setState(manual ? 'paused' : 'wait')
+}
+function setState(next: ControlState) {
+  if (next === state) return
+  state = next
+  stateListeners.forEach((fn) => fn(next))
+}
+
+function fire(g: Gesture, f: FaceFrame) {
+  if (manual || away || !armed || f.t < graceUntil) return
+  if ((g === 'nod' || g === 'shake') && f.t < talkingUntil) return
+  armed = false
+  history.length = 0
+  gestureListeners.forEach((fn) => fn(g))
+}
+
+const recent = (f: FaceFrame, ms: number) => history.filter((h) => f.t - h.t <= ms)
+const spread = (hs: FaceFrame[], key: 'yaw' | 'pitch' | 'jaw') => {
+  const v = hs.map((h) => h[key])
+  return v.length ? Math.max(...v) - Math.min(...v) : 0
+}
+
 function detectGestures(f: FaceFrame) {
-  if (!f.found) return
-  detectTurn(f)
-  detectEyes(f)
+  lastT = f.t
+  if (!f.found) {
+    lostSince ||= f.t
+    if (f.t - lostSince > 500) away = 'away'
+    backSince = 0
+    setState(manual ? 'paused' : away ?? state)
+    return
+  }
+  lostSince = 0
   history.push(f)
   while (history.length && f.t - history[0].t > WINDOW_MS) history.shift()
-  // While turned, or just back from a turn, the swing isn't a shake. 5 frames: slow cameras still count.
-  if (f.t < cooldownUntil || turnSince || f.t - lastTurn < WINDOW_MS || f.t - seenSince < 2500 || history.length < 5) return
-  // Swings = times the head crosses the middle of its recent range, counting only clear excursions to
-  // each side. Frame-to-frame jitter doesn't count, so one turn (a single crossing) is never a shake.
+  const off = learnRest(f)
+  // Still = the last ARM_MS (fully covered by frames) moved less than STILL_DEG on both axes.
+  const win = recent(f, ARM_MS)
+  const still = win.length >= 3 && f.t - win[0].t >= ARM_MS - 100 && spread(win, 'yaw') < STILL_DEG && spread(win, 'pitch') < STILL_DEG
+  const centred = Math.abs(off) < TURN_DEG / 2
+
+  // Looking away (turned past AWAY_DEG), or someone else in view: pause until you face the screen again.
+  if (f.faces > 1) away = 'others'
+  else if (Math.abs(off) > AWAY_DEG) away = 'away'
+  else if (away) {
+    backSince = centred && still ? backSince || f.t : 0
+    if (backSince && f.t - backSince > RESUME_MS) {
+      away = null
+      backSince = 0
+      armed = false
+    }
+  }
+
+  // Talking: the mouth opening and closing quickly.
+  if (spread(recent(f, 700), 'jaw') > 0.12) talkingUntil = f.t + TALK_MS
+
+  if (!armed && !manual && !away && f.t >= graceUntil && centred && still && !shut(f)) {
+    armed = true
+    history.length = 0 // only movement after re-arming counts (no replaying the end of the last nod)
+  }
+
+  detectTurn(f, off)
+  detectEyes(f)
+  detectSwing(f)
+  setState(manual ? 'paused' : away ? away : !armed ? 'wait' : f.t < talkingUntil ? 'talking' : 'ready')
+}
+
+// "Facing forward" is learned: quickly when a face first appears, then only slowly and only while you
+// face roughly forward. It survives brief face loss; it is re-learned after 10 s without a face, or if
+// you've stayed turned (but not looking away) for POSTURE_MS, which means it started wrong.
+let restYaw: number | null = null
+let seenSince = 0
+let prevT = 0
+let offSince = 0
+export const turnState = () => ({ rest: restYaw, state })
+function learnRest(f: FaceFrame) {
+  if (restYaw === null || f.t - prevT > 10000) {
+    restYaw = f.yaw
+    seenSince = f.t
+  }
+  const dt = Math.min(0.2, (f.t - prevT) / 1000)
+  prevT = f.t
+  const off = f.yaw - restYaw
+  if (f.t - seenSince < 1500) restYaw += off * Math.min(1, dt / 0.4)
+  else if (Math.abs(off) < TURN_DEG / 2) restYaw += off * (dt / 2.5)
+  const turned = Math.abs(off) >= TURN_DEG && Math.abs(off) <= AWAY_DEG
+  offSince = turned ? offSince || f.t : 0
+  if (offSince && f.t - offSince > POSTURE_MS) {
+    restYaw = f.yaw
+    offSince = 0
+  }
+  return f.yaw - restYaw
+}
+
+// Turn = head turned between TURN_DEG and AWAY_DEG, held briefly. One turn, one step: to move again,
+// come back to the centre (which re-arms) and turn again.
+let turnSince = 0
+let turnDone = false
+function detectTurn(f: FaceFrame, off: number) {
+  if (Math.abs(off) < TURN_DEG || Math.abs(off) > AWAY_DEG) {
+    turnSince = 0
+    turnDone = false
+    return
+  }
+  turnSince ||= f.t
+  if (turnDone || f.t - turnSince < HOLD_MS) return
+  turnDone = true
+  fire(off > 0 ? 'right' : 'left', f) // confirmed by the user on a real webcam: yaw + = turned right
+}
+
+// Nod = up-down swing of the head (pitch), shake = left-right (yaw), within WINDOW_MS, the other axis
+// steady. Swings = crossings of the middle of the recent range, counting only clear excursions to each
+// side, so jitter never counts and one turn (a single crossing) is never a shake.
+function detectSwing(f: FaceFrame) {
+  if (turnSince || f.t - seenSince < 2500 || history.length < 5) return
   const swings = (key: 'yaw' | 'pitch', dead: number) => {
     const v = history.map((h) => h[key])
     const lo = Math.min(...v)
@@ -188,113 +335,35 @@ function detectGestures(f: FaceFrame) {
     let side = 0
     for (const x of v) {
       if (Math.abs(x - mid) < dead) continue
-      const s = Math.sign(x - mid)
-      if (side && s !== side) turns++
-      side = s
+      const sgn = Math.sign(x - mid)
+      if (side && sgn !== side) turns++
+      side = sgn
     }
     return { range: hi - lo, turns }
   }
   const p = swings('pitch', 3)
   const y = swings('yaw', 4)
-  let g: Gesture | null = null
-  if (p.range > 10 && p.turns >= 2 && y.range < p.range * 0.6) g = 'nod'
-  else if (y.range > 14 && y.turns >= 2 && p.range < y.range * 0.6) g = 'shake'
-  if (g) {
-    cooldownUntil = f.t + 1300
-    history.length = 0
-    turnSince = 0
-    gestureListeners.forEach((fn) => fn(g!))
-  }
-}
-
-// Turn = head turned past TURN_DEG from where it usually rests, and held. A shake swings back too fast to
-// count. Holding repeats, so you can move several steps without turning back and forth.
-const TURN_DEG = 16
-const HOLD_MS = 350
-const REPEAT_MS = 700
-const CENTRE_MS = 300 // back in the centre this long before the opposite direction can fire (no rebound)
-const REPEAT_FOR_MS = 3000 // a held turn repeats for this long, then stops (a long hold isn't a request)
-const POSTURE_MS = 12000 // turned this long = "forward" must be wrong (or you moved): re-centre there
-let restYaw: number | null = null
-let seenSince = 0
-let prevT = 0
-let turnSince = 0
-let turnFired = 0
-let lastTurn = 0
-let lastDir = 0
-let centredSince = 0
-let turnBlocked = false
-let needCentre = false // after a re-centre, wait for the head to settle before any turn
-// For the debug readout.
-export const turnState = () => ({ rest: restYaw, lastDir })
-function detectTurn(f: FaceFrame) {
-  // "Facing forward" is learned: it settles quickly when a face first appears, then follows slow posture
-  // changes only while you face roughly forward. It is kept through brief face loss (a big turn can lose
-  // the face for a moment; re-learning then would make the way back read as a turn the other way).
-  if (restYaw === null || f.t - prevT > 10000) {
-    restYaw = f.yaw
-    seenSince = f.t
-  }
-  const dt = Math.min(0.2, (f.t - prevT) / 1000)
-  prevT = f.t
-  const off = f.yaw - restYaw
-  const turned = Math.abs(off) >= TURN_DEG
-  if (f.t - seenSince < 1500) restYaw += off * Math.min(1, dt / 0.4)
-  else if (Math.abs(off) < TURN_DEG / 2) restYaw += off * (dt / 2.5) // follow posture only near the centre
-  if (turned && turnSince && f.t - turnSince > POSTURE_MS) {
-    // Turned for ages: "forward" started wrong or you've settled somewhere new. Re-centre and pause turns
-    // until the head has rested in the new centre, so one direction can't stay stuck on.
-    restYaw = f.yaw
-    turnSince = turnFired = lastDir = 0
-    needCentre = true
-    return
-  }
-  if (!turned || f.t < cooldownUntil) {
-    if (turnFired) lastTurn = f.t // coming back from a turn
-    if (!turned) centredSince ||= f.t
-    if (needCentre && centredSince && f.t - centredSince > CENTRE_MS) needCentre = false
-    turnSince = turnFired = 0
-    return
-  }
-  if (needCentre) {
-    centredSince = 0
-    return
-  }
-  const dir = off > 0 ? 1 : -1
-  if (!turnSince) {
-    // A new turn starts. The way back from the last one can overshoot the other way: an opposite turn
-    // right after it only counts if the head first rested in the centre.
-    const rested = centredSince && f.t - centredSince > CENTRE_MS
-    turnBlocked = !!lastDir && dir !== lastDir && f.t - lastTurn < 1500 && !rested
-    turnSince = f.t
-  }
-  centredSince = 0
-  if (turnBlocked) return
-  if (f.t - turnSince < HOLD_MS || (turnFired && f.t - turnFired < REPEAT_MS) || f.t - turnSince > REPEAT_FOR_MS) return
-  turnFired = f.t
-  lastDir = dir
-  const g: Gesture = dir > 0 ? 'right' : 'left' // confirmed by the user on a real webcam: yaw + = turned right
-  gestureListeners.forEach((fn) => fn(g))
+  if (p.range > 10 && p.turns >= 2 && y.range < p.range * 0.6) fire('nod', f)
+  else if (y.range > 14 && y.turns >= 2 && p.range < y.range * 0.6) fire('shake', f)
 }
 
 // Eyes closed = both eyes shut for about a second. Far more reliable than a wink (and possible for people
-// who can't wink); an ordinary blink lasts a fraction of the hold, so it never counts. Fires once per
-// closing: open your eyes before it can fire again.
+// who can't wink); an ordinary blink lasts a fraction of the hold, so it never counts. Once per closing.
 const CLOSED = 0.5
 export const CLOSE_MS = 900
 let closedSince = 0
-let closedFired = false
+let closedDone = false
 const shut = (f: FaceFrame) => f.blink.l > CLOSED && f.blink.r > CLOSED
 // 0..1: how far through the hold you are (drives the setup's live meter).
 export const eyesClosedLevel = (f: FaceFrame) => (closedSince && shut(f) ? Math.min(1, (f.t - closedSince) / CLOSE_MS) : 0)
 function detectEyes(f: FaceFrame) {
   if (!shut(f)) {
     closedSince = 0
-    closedFired = false
+    closedDone = false
     return
   }
   closedSince ||= f.t
-  if (closedFired || f.t - closedSince < CLOSE_MS) return
-  closedFired = true
-  gestureListeners.forEach((fn) => fn('eyes'))
+  if (closedDone || f.t - closedSince < CLOSE_MS) return
+  closedDone = true
+  fire('eyes', f)
 }
