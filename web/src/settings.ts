@@ -12,12 +12,13 @@ export type Settings = {
   lang: string // 'original' or a language code
 }
 
+// Every accessibility feature is opt-in: the defaults are the plain reading experience.
 export const DEFAULTS: Settings = {
   font: 'default',
   textScale: 1,
   color: 'none',
   emotions: false,
-  captions: true,
+  captions: false,
   lang: 'original',
 }
 

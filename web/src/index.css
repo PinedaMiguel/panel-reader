@@ -1014,23 +1014,3 @@ html:has(.app) body { background: var(--surface-0); }
 
 /* The reader is already painted underneath; uncover it. */
 .processing.leaving { opacity: 0; transition: opacity 0.3s ease; pointer-events: none; }
-
-/* Narrator prompt: browser voice is the main action; ElevenLabs is small print */
-.settings.narrator p { margin: 0 0 16px; color: var(--muted); }
-.settings.narrator form { justify-content: stretch; }
-.settings.narrator form button { width: 100%; padding: 12px 20px; }
-.small-print {
-  display: block;
-  margin: 12px auto 0;
-  padding: 4px;
-  border: 0;
-  background: none;
-  color: var(--muted);
-  font: inherit;
-  font-size: 0.8rem;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
-}
-.small-print:hover { color: var(--fg); }
-.toast-low { top: auto; bottom: 72px; right: 16px; }

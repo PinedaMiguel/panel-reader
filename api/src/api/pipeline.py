@@ -157,7 +157,7 @@ def _run(job: Job, uploads: list[Upload], title: str, rtl: bool, audio: bool, ta
             job.update("recording audio", d, t)
             job.emit("clip", panel=pid, kind=kind, done=d, total=t)
 
-        # Dialogue + sound effects only: the narrator is recorded on request (narrate_comic below).
+        # Dialogue + sound effects only; audiobook narration uses the reader's browser voice.
         narrate.render(comic, root, cid, progress=progress, narration=False)
     _save_local(root, comic)
 
@@ -340,37 +340,3 @@ def _translate(job: Job, cid: str, lang: str, language: str, audio: bool) -> Non
         job.update("saving to Neon", n, len(new))
         storage.upload(MEDIA / key, key)
     db.save_translation(cid, lang, [p for page in comic["pages"] for p in page["panels"]])
-
-
-def narrate_comic(job: Job, cid: str, lang: str | None) -> None:
-    """On request: record the audiobook narrator (ElevenLabs) for a comic, in its original language or a
-    translation. Only narration clips that don't exist yet are recorded."""
-    try:
-        comic = db.load_comic(cid, sign=False)
-        if lang and not db.apply_translation(comic, lang, sign=False):
-            raise ValueError(f"no {lang} translation")
-        root = comic_dir(cid)
-        root.mkdir(parents=True, exist_ok=True)
-        before = keys(comic)
-        job.update("recording narrator")
-
-        def progress(d, t, *_):
-            job.update("recording narrator", d, t)
-            job.emit("progress", done=d, total=t)
-
-        narrate.render(comic, root, cid, progress=progress, narration=True, lines=False, sfx=False)
-        new = sorted(keys(comic) - before)
-        for n, key in enumerate(new, 1):
-            job.update("saving to Neon", n, len(new))
-            storage.upload(MEDIA / key, key)
-        if lang:
-            db.save_translation(cid, lang, [p for page in comic["pages"] for p in page["panels"]])
-        else:
-            db.save_comic(comic)
-        job.emit("done", comic=cid)
-        job.update("done")
-    except Exception as e:
-        traceback.print_exc()
-        job.error = str(e)
-        job.emit("error", message=str(e))
-        job.update("error")

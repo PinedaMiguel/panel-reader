@@ -139,8 +139,6 @@ export default function App() {
           startAt={handoff?.comic.id === comic.id ? handoff.start : undefined}
           pageSizes={handoff?.comic.id === comic.id ? handoff.sizes : undefined}
           onReady={processing ? uncover : undefined}
-          comicId={id}
-          onRefresh={() => setReload((n) => n + 1)}
         />
       </>
     )

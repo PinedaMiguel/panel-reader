@@ -60,7 +60,7 @@ def cast(comic: dict) -> None:
 def render(comic: dict, comic_dir: Path, url_prefix: str, progress=None,
            narration: bool = True, lines: bool = True, sfx: bool = True) -> None:
     """Record missing clips. progress(done, total, panel_id, kind) is called after each clip
-    (kind: narration/line/sfx). Uploads record lines + sfx; narration is recorded only on request."""
+    (kind: narration/line/sfx). Uploads record lines + sfx only; the reader voices narration itself."""
     out = comic_dir / "audio"
     out.mkdir(exist_ok=True)
     voices = {c["id"]: c["voiceId"] for c in comic["characters"]}
