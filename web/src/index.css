@@ -525,24 +525,56 @@ html:has(.app) body { background: var(--surface-0); }
 }
 
 /* Home: the shows, big enough to spot across a table */
-.shows { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 28px; margin: 0; padding: 8px; list-style: none; }
+.shows { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 32px 24px; margin: 0; padding: 8px; list-style: none; }
 
-/* Floating-cover card: the dark slab starts a quarter down the cover */
-.card { scroll-snap-align: start; display: grid; }
-.card a { position: relative; display: grid; align-content: start; height: 100%; gap: 12px; padding: 0 12px 14px; color: var(--fg); text-decoration: none; isolation: isolate; }
-.card a::before { content: ''; position: absolute; inset: 60px 0 0; z-index: -1; border-radius: 14px; background: var(--surface-1); }
-.card img {
-  width: 100%;
-  aspect-ratio: 2 / 3;
-  object-fit: cover;
-  border-radius: 10px;
-  border: 1px solid var(--hairline);
-  background: var(--surface-2);
+/* Show card: the cover is the card; the title sits on the art, details below */
+.card a { display: grid; gap: 10px; color: var(--fg); text-decoration: none; border-radius: 16px; }
+.card-art {
+  position: relative; display: block; aspect-ratio: 2 / 3; border-radius: 16px; overflow: hidden;
+  background: var(--surface-2); box-shadow: 0 18px 40px rgb(0 0 0 / 0.45); transition: transform 0.25s, box-shadow 0.25s;
 }
-.card-body { display: grid; gap: 2px; }
-.card-title { font-weight: 700; line-height: 1.3; }
-.card-meta { font-size: 0.8rem; font-weight: 700; color: #b8bcc6; }
-.card-status { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; font-size: 0.85rem; font-weight: 700; color: var(--accent); }
+.card-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.card-art::after { content: ''; position: absolute; inset: 45% 0 0; background: linear-gradient(transparent, rgb(0 0 0 / 0.88)); }
+.card-title {
+  position: absolute; left: 14px; right: 14px; bottom: 12px; z-index: 1;
+  font: 700 1.15rem / 1.2 var(--title-font); text-shadow: 0 2px 8px rgb(0 0 0 / 0.6);
+}
+.card-meta { padding: 0 4px; font-size: 0.85rem; font-weight: 600; color: var(--muted); }
+.card a:hover .card-art, .card a:focus-visible .card-art, .switch-on .card a:focus .card-art { transform: translateY(-6px) scale(1.02); box-shadow: 0 26px 50px rgb(0 0 0 / 0.6), 0 0 0 3px var(--accent); }
+.switch-on .card a:focus { outline: none !important; box-shadow: none; } /* the art carries the highlight */
+
+/* Featured show: a cinematic header with a blurred cover behind */
+.hero {
+  position: relative; isolation: isolate; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr);
+  align-items: center; gap: 48px; min-height: min(68vh, 640px); padding: 48px max(32px, calc((100vw - 1280px) / 2 + 32px));
+}
+.hero-backdrop { position: absolute; inset: 0; z-index: -2; width: 100%; height: 100%; object-fit: cover; filter: blur(36px) saturate(1.2); transform: scale(1.25); opacity: 0.55; }
+.hero::before { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, var(--surface-0) 18%, rgb(20 21 23 / 0.6) 60%, rgb(20 21 23 / 0.2)); }
+.hero::after { content: ''; position: absolute; inset: auto 0 0; height: 35%; z-index: -1; background: linear-gradient(transparent, var(--surface-0)); }
+.hero-text { display: grid; gap: 14px; justify-items: start; max-width: 620px; }
+.hero-text .eyebrow { margin: 0; }
+.hero h1 { margin: 0; font: 400 clamp(2.8rem, 6vw, 5rem) / 0.95 var(--display-font); letter-spacing: 0.02em; color: #fff; text-shadow: 0 4px 0 #000; }
+.hero-meta { margin: 0; color: var(--muted); font-weight: 600; }
+.hero-tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.hero-tags li { padding: 5px 12px; border-radius: 99px; background: rgb(255 255 255 / 0.1); border: 1px solid var(--hairline); font-size: 0.85rem; font-weight: 600; }
+.hero-synopsis { margin: 0; max-width: 56ch; font-size: 1.05rem; line-height: 1.6; color: #d8d4d0; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.hero-actions { display: flex; gap: 12px; margin-top: 6px; }
+.hero-actions .btn { text-decoration: none; min-height: 52px; display: inline-flex; align-items: center; }
+.btn-ghost { background: rgb(255 255 255 / 0.12); border: 1px solid rgb(255 255 255 / 0.2); }
+.hero-cover { justify-self: center; width: min(320px, 100%); aspect-ratio: 2 / 3; border-radius: 20px; overflow: hidden; transform: rotate(3deg); box-shadow: 0 40px 80px rgb(0 0 0 / 0.6), 0 0 0 4px #000, 8px 8px 0 4px var(--accent); }
+.hero-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+@media (max-width: 760px) {
+  .hero { grid-template-columns: 1fr; padding: 32px 16px; min-height: 0; }
+  .hero-cover { display: none; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .card { animation: card-in 0.45s cubic-bezier(0.2, 1.3, 0.4, 1) calc(var(--i, 0) * 70ms) both; }
+  .hero-text > * { animation: card-in 0.5s ease-out both; }
+  .hero-cover { animation: cover-in 0.7s cubic-bezier(0.2, 1.3, 0.4, 1) both; }
+}
+@keyframes card-in { from { opacity: 0; transform: translateY(18px) scale(0.96); } }
+@keyframes cover-in { from { opacity: 0; transform: rotate(-4deg) translateY(30px); } }
+
 .lang { padding: 1px 6px; border-radius: 6px; background: var(--surface-2); color: var(--fg); font-size: 0.7rem; letter-spacing: 0.05em; }
 .empty { color: var(--muted); padding: 24px 0; }
 
@@ -610,8 +642,7 @@ html:has(.app) body { background: var(--surface-0); }
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .btn, .chips button, .card img { transition: transform 0.15s, background-color 0.15s, filter 0.15s; }
-  .card a:hover img { transform: translateY(-4px); }
+  .btn, .chips button { transition: transform 0.15s, background-color 0.15s, filter 0.15s; }
   .feature-art img { transition: transform 0.6s ease; }
   .feature-art:hover img { transform: scale(1.03); }
   .btn:not(:disabled):hover { filter: brightness(1.1); }
@@ -1013,17 +1044,6 @@ html:has(.app) body { background: var(--surface-0); }
 .reader.arrived .camera,
 .reader.arrived .shot.in { animation: none; }
 
-.card { gap: 8px; }
-.card-replay {
-  font: 600 0.8rem var(--font);
-  padding: 6px 10px;
-  border: 1px solid var(--hairline);
-  border-radius: 10px;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-}
-.card-replay:hover { color: var(--fg); border-color: var(--accent); }
 
 /* The reader is already painted underneath; uncover it. */
 .processing.leaving { opacity: 0; transition: opacity 0.3s ease; pointer-events: none; }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import Preview from './Preview'
 import { loadHearts } from './face/heart'
 
@@ -21,6 +21,7 @@ export type ProcessJob = { id: string; files: File[]; title: string }
 export default function Home({ onProcess }: { onProcess: (job: ProcessJob) => void }) {
   const [comics, setComics] = useState<Listed[] | null>(null)
   const [previewing, setPreviewing] = useState<Listed | null>(null)
+  const [blurb, setBlurb] = useState<{ id: string; synopsis: string; minutes: number } | null>(null)
 
   useEffect(() => {
     fetch('/api/comics')
@@ -52,8 +53,18 @@ export default function Home({ onProcess }: { onProcess: (job: ProcessJob) => vo
         .map((r) => r.c)
     : []
 
-  const card = (c: Listed) => (
-    <li key={c.id} className="card">
+  // Featured: the heart meter's favourite, else the newest. Its synopsis comes from the (cached) preview.
+  const featured = liked ?? list[0]
+  useEffect(() => {
+    if (!featured) return
+    fetch(`/api/comics/${featured.id}/preview`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setBlurb({ id: featured.id, synopsis: d.synopsis, minutes: d.minutes }))
+      .catch(() => {})
+  }, [featured?.id])
+
+  const card = (c: Listed, k: number) => (
+    <li key={c.id} className="card" style={{ '--i': k } as CSSProperties}>
       <a
         href={`?id=${c.id}`}
         onClick={(e) => {
@@ -62,12 +73,13 @@ export default function Home({ onProcess }: { onProcess: (job: ProcessJob) => vo
           setPreviewing(c)
         }}
       >
-        {c.cover && <img src={c.cover} alt="" loading="lazy" />}
-        <span className="card-body">
+        <span className="card-art">
+          {c.cover && <img src={c.cover} alt="" loading="lazy" />}
           <span className="card-title">{c.title}</span>
-          <span className="card-meta">
-            {c.panels} panels{c.voices ? ` · ${c.voices} voices` : ''}
-          </span>
+        </span>
+        <span className="card-meta">
+          {c.panels} panels{c.voices ? ` · ${c.voices} voices` : ''}
+          {c.genres?.[0] && ` · ${c.genres[0]}`}
         </span>
       </a>
     </li>
@@ -78,6 +90,41 @@ export default function Home({ onProcess }: { onProcess: (job: ProcessJob) => vo
       <header className="appbar">
         <span className="wordmark">Panel Reader</span>
       </header>
+
+      {featured && (
+        <section className="hero" aria-labelledby="hero-title">
+          {featured.cover && <img className="hero-backdrop" src={featured.cover} alt="" />}
+          <div className="hero-text">
+            <p className="eyebrow">{liked ? 'Your heart meter’s pick' : 'Featured'}</p>
+            <h1 id="hero-title">{featured.title}</h1>
+            <p className="hero-meta">
+              {blurb?.id === featured.id && `${blurb.minutes} min · `}
+              {featured.panels} panels{featured.voices ? ` · ${featured.voices} voices` : ''}
+            </p>
+            {!!featured.genres?.length && (
+              <ul className="hero-tags" aria-label="Genres">
+                {[...featured.genres, ...(featured.moods ?? [])].slice(0, 4).map((g) => (
+                  <li key={g}>{g}</li>
+                ))}
+              </ul>
+            )}
+            {blurb?.id === featured.id && <p className="hero-synopsis">{blurb.synopsis}</p>}
+            <div className="hero-actions">
+              <a className="btn btn-accent btn-lg" href={`?id=${featured.id}`}>
+                ▶ Play
+              </a>
+              <button type="button" className="btn btn-lg btn-ghost" onClick={() => setPreviewing(featured)}>
+                Preview
+              </button>
+            </div>
+          </div>
+          {featured.cover && (
+            <span className="hero-cover" aria-hidden="true">
+              <img src={featured.cover} alt="" />
+            </span>
+          )}
+        </section>
+      )}
 
       <main className="home">
         {liked && because.length > 0 && (
