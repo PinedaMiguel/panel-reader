@@ -1,0 +1,590 @@
+{
+  "id": "vignettes",
+  "title": "Y: The Last Man (excerpt)",
+  "characters": [
+    {
+      "id": "senator",
+      "name": "The Senator",
+      "description": "A silver-haired man in a blue suit with a flag pin, square-jawed and self-assured.",
+      "voiceId": "nPczCjzI2devNBz1zQrb"
+    },
+    {
+      "id": "jen",
+      "name": "Jen",
+      "description": "A representative with short grey hair, pearl necklace and a rose-red blazer.",
+      "voiceId": "XrExE9yKIg1WjnnlVkGX"
+    },
+    {
+      "id": "aide",
+      "name": "The aide",
+      "description": "A young man with glasses, a light blue shirt and a striped tie, holding an umbrella.",
+      "voiceId": "bIHbv24MWmeRgasZH58o"
+    },
+    {
+      "id": "agent",
+      "name": "The agent",
+      "description": "A dark-haired young man in a brown overcoat, serious and formal.",
+      "voiceId": "N2lVS1w4EtoT3dr4eOWO"
+    },
+    {
+      "id": "christopher",
+      "name": "Christopher",
+      "description": "A dark-haired TV reporter in a khaki vest, holding a microphone, cheerful and a little careless.",
+      "voiceId": "iP95p4xoKVk53GoZ742B"
+    },
+    {
+      "id": "colonel",
+      "name": "The Colonel",
+      "description": "A soldier with dark hair pulled back, in olive fatigues, carrying a rifle; calm and stern.",
+      "voiceId": "Xb7hH8MSUJpSbSDYk0k2"
+    },
+    {
+      "id": "crew",
+      "name": "Crew member",
+      "description": "A news crew member with tousled hair, gesturing nervously.",
+      "voiceId": "TX3LPaxmHKxFdv7VOQHJ"
+    }
+  ],
+  "pages": [
+    {
+      "id": "page12",
+      "image": "/vignettes/page-12.jpg",
+      "panels": [
+        {
+          "id": "v1",
+          "image": "/vignettes/1.jpg",
+          "order": 1,
+          "scene": "Rain falls under the leaves of a tree. Jen, a grey-haired representative in a red blazer, faces the Senator, a silver-haired man in a blue suit. He leans in with a cold, confident smile.",
+          "characters": [
+            {
+              "characterId": "jen",
+              "emotion": "defiant",
+              "appearance": "chin raised, eyes narrowed"
+            },
+            {
+              "characterId": "senator",
+              "emotion": "smug",
+              "appearance": "tight smile, looking down at her"
+            }
+          ],
+          "lines": [
+            {
+              "speaker": "jen",
+              "text": "Is that a threat, Senator?",
+              "tagged": "[sharply] Is that a threat, Senator?",
+              "audio": "/vignettes/audio/8474a699569ab0df.mp3"
+            },
+            {
+              "speaker": "senator",
+              "text": "I don't need to threaten you, Jen.",
+              "tagged": "[calmly] I don't need to threaten you, Jen.",
+              "audio": "/vignettes/audio/1285c0936ac2d70c.mp3"
+            },
+            {
+              "speaker": "senator",
+              "text": "You got lucky once, but you won't get elected again... not without my help.",
+              "tagged": "[smugly] You got lucky once, but you won't get elected again... [pause] not without my help.",
+              "audio": "/vignettes/audio/d3208946e6e678a7.mp3"
+            }
+          ],
+          "sfx": [
+            {
+              "prompt": "steady light rain falling on leaves",
+              "audio": "/vignettes/audio/adc0fedd1ac143ea.mp3"
+            }
+          ],
+          "emotionLabels": [
+            "Jen: defiant",
+            "Senator: smug"
+          ],
+          "narration": "Leaves hang overhead as rain streaks softly through the pale air between them. Jen stands firm, her chin lifted in quiet defiance. The Senator gazes back at her with cool, unwavering self-assurance.",
+          "narrationAudio": "/vignettes/audio/dbb1faeecbc9a2f3.mp3",
+          "bbox": [
+            44,
+            84,
+            989,
+            429
+          ]
+        },
+        {
+          "id": "v2",
+          "image": "/vignettes/2.jpg",
+          "order": 2,
+          "scene": "In front of a white-columned building, a young agent in a brown overcoat steps up to the Senator. Jen watches from behind.",
+          "characters": [
+            {
+              "characterId": "agent",
+              "emotion": "serious",
+              "appearance": "straight posture, firm look"
+            },
+            {
+              "characterId": "senator",
+              "emotion": "irritated",
+              "appearance": "eyebrows raised, mid-sentence"
+            }
+          ],
+          "lines": [
+            {
+              "speaker": "agent",
+              "text": "Excuse me, sir. You're needed in the West Wing.",
+              "tagged": "[formally] Excuse me, sir. You're needed in the West Wing.",
+              "audio": "/vignettes/audio/a05910ea47f85e44.mp3"
+            },
+            {
+              "speaker": "senator",
+              "text": "My meeting isn't until seven.",
+              "tagged": "[dismissively] My meeting isn't until seven.",
+              "audio": "/vignettes/audio/71b93b15bfcd5bb4.mp3"
+            },
+            {
+              "speaker": "agent",
+              "text": "This is at the request of POTUS, sir. I was told to tell you that it concerns \"355.\"",
+              "tagged": "[quietly] This is at the request of POTUS, sir. I was told to tell you that it concerns... three-five-five.",
+              "audio": "/vignettes/audio/714499ec42860e40.mp3"
+            }
+          ],
+          "emotionLabels": [
+            "Agent: serious",
+            "Senator: irritated"
+          ],
+          "narration": "Before the grand stairs of the Capitol, the dark-haired agent approaches briskly, his expression sharp and urgent. The Senator turns with mild irritation, caught off guard by the intrusion, while Jen looks on quietly from his side.",
+          "sfx": [
+            {
+              "prompt": "light drizzle falling",
+              "audio": "/vignettes/audio/b18a3bf9e9899692.mp3"
+            }
+          ],
+          "narrationAudio": "/vignettes/audio/b86b5e07a8291b55.mp3",
+          "bbox": [
+            43,
+            428,
+            992,
+            764
+          ]
+        },
+        {
+          "id": "v3",
+          "image": "/vignettes/3.jpg",
+          "order": 3,
+          "scene": "The Senator turns away in the rain, his expression hard. Behind him, Jen stands with her arms crossed beside her aide, who holds a black umbrella.",
+          "characters": [
+            {
+              "characterId": "senator",
+              "emotion": "guarded",
+              "appearance": "jaw set, glancing back"
+            },
+            {
+              "characterId": "jen",
+              "emotion": "suspicious",
+              "appearance": "arms crossed, frowning"
+            }
+          ],
+          "lines": [
+            {
+              "speaker": "senator",
+              "text": "We'll continue this discussion later, Representative.",
+              "tagged": "[coldly] We'll continue this discussion later, Representative.",
+              "audio": "/vignettes/audio/9bd6d1d08222e44c.mp3"
+            }
+          ],
+          "emotionLabels": [
+            "Senator: guarded",
+            "Jen: suspicious"
+          ],
+          "narration": "Rain pours from the canopy of leaves overhead as the Senator turns away, casting a cold, guarded glance back over his shoulder. Behind him, Jen watches him go with her arms crossed firmly, her expression tight with skepticism while her aide holds an umbrella over them.",
+          "sfx": [
+            {
+              "prompt": "steady rain falling on leaves",
+              "audio": "/vignettes/audio/2870e40f87a07fb7.mp3"
+            }
+          ],
+          "narrationAudio": "/vignettes/audio/cd5ce2249bdd4635.mp3",
+          "bbox": [
+            43,
+            757,
+            986,
+            1109
+          ]
+        },
+        {
+          "id": "v4",
+          "image": "/vignettes/4.jpg",
+          "order": 4,
+          "scene": "Under the umbrella in a rainy park, the aide looks at Jen, puzzled. Jen gazes into the distance with a wry, knowing look.",
+          "characters": [
+            {
+              "characterId": "aide",
+              "emotion": "confused",
+              "appearance": "brow furrowed behind his glasses"
+            },
+            {
+              "characterId": "jen",
+              "emotion": "wry",
+              "appearance": "slight smirk, looking ahead"
+            }
+          ],
+          "lines": [
+            {
+              "speaker": "aide",
+              "text": "What's 355, ma'am? That's not a bill, is it?",
+              "tagged": "[curious] What's three-fifty-five, ma'am? That's not a bill, is it?",
+              "audio": "/vignettes/audio/9f4b986db0833623.mp3"
+            },
+            {
+              "speaker": "jen",
+              "text": "Who knows? But if he's meeting with the President, it's probably about baseball...",
+              "tagged": "[dryly] Who knows? But if he's meeting with the President, it's probably about baseball...",
+              "audio": "/vignettes/audio/f8cf3bd7b4be35ca.mp3"
+            }
+          ],
+          "sfx": [
+            {
+              "prompt": "rain pattering on an umbrella",
+              "audio": "/vignettes/audio/63a4f45bf3e367a2.mp3"
+            }
+          ],
+          "emotionLabels": [
+            "Aide: confused",
+            "Jen: wry"
+          ],
+          "narration": "Rain falls steadily around them as the aide holds the black umbrella overhead. He turns to Jen, his brow furrowed in confusion behind his glasses. Jen looks out across the wet lawn, her lips curling into an amused smirk.",
+          "narrationAudio": "/vignettes/audio/095ea6efc1cc6de0.mp3",
+          "bbox": [
+            47,
+            1099,
+            989,
+            1510
+          ]
+        }
+      ]
+    },
+    {
+      "id": "page16",
+      "image": "/vignettes/page-16.jpg",
+      "panels": [
+        {
+          "id": "v5",
+          "image": "/vignettes/5.jpg",
+          "order": 5,
+          "scene": "In a narrow alley, soldiers in olive fatigues and riot helmets move forward. A reporter in a khaki vest runs after them, shouting and pointing.",
+          "characters": [
+            {
+              "characterId": "christopher",
+              "emotion": "outraged",
+              "appearance": "mouth open, pointing"
+            },
+            {
+              "characterId": "colonel",
+              "emotion": "focused",
+              "appearance": "back turned, rifle raised"
+            }
+          ],
+          "lines": [
+            {
+              "speaker": "christopher",
+              "text": "Hey!",
+              "tagged": "[shouting] Hey!",
+              "audio": "/vignettes/audio/0ad595054158594e.mp3"
+            },
+            {
+              "speaker": "christopher",
+              "text": "Yeah, you, Private Benjamin! They're just kids! What the hell are you doing?",
+              "tagged": "[angry] Yeah, you, Private Benjamin! They're just kids! What the hell are you doing?",
+              "audio": "/vignettes/audio/c7d543e6a5d07a43.mp3"
+            }
+          ],
+          "sfx": [
+            {
+              "prompt": "distant crowd shouting in a stone alley, boots running",
+              "audio": "/vignettes/audio/7a397431eae8f519.mp3"
+            }
+          ],
+          "emotionLabels": [
+            "Christopher: outraged",
+            "Colonel: focused"
+          ],
+          "narration": "Soldiers in green fatigues advance through a passage, riot visors perched on their helmets as they rush forward. The Colonel stands firm with her weapon ready, focused ahead. Christopher hustles after them, clutching his clipboard and pointing an accusatory finger in fierce indignation.",
+          "narrationAudio": "/vignettes/audio/84988d4f5a0acdb9.mp3",
+          "bbox": [
+            45,
+            64,
+            460,
+            515
+          ]
+        },
+        {
+          "id": "v6",
+          "image": "/vignettes/6.jpg",
+          "order": 6,
+          "scene": "The Colonel turns to face the reporter, rifle in hand, her look stern. He raises a hand with a nervous grin.",
+          "characters": [
+            {
+              "characterId": "colonel",
+              "emotion": "stern",
+              "appearance": "steady glare, rifle lowered"
+            },
+            {
+              "characterId": "christopher",
+              "emotion": "embarrassed",
+              "appearance": "hand raised, sheepish smile"
+            }
+          ],
+          "lines": [
+            {
+              "speaker": "colonel",
+              "text": "I am firing rubber bullets. As warning shots. Well above the Palestinians' heads.",
+              "tagged": "[firmly] I am firing rubber bullets. As warning shots. Well above the Palestinians' heads.",
+              "audio": "/vignettes/audio/f4d9877483013347.mp3"
+            },
+            {
+              "speaker": "colonel",
+              "text": "And my name is Colonel Tse'elon. If you ever again refer to me as Private anything, I will not afford you such courtesy.",
+              "tagged": "[coldly] And my name is Colonel Tse'elon. If you ever again refer to me as Private anything, I will not afford you such courtesy.",
+              "audio": "/vignettes/audio/8daf0c823936ff6c.mp3"
+            },
+            {
+              "speaker": "christopher",
+              "text": "Oh. My... my bad. Heh.",
+              "tagged": "[nervous laugh] Oh. My... my bad. Heh.",
+              "audio": "/vignettes/audio/adfda24133f7e8a2.mp3"
+            }
+          ],
+          "emotionLabels": [
+            "Colonel: stern",
+            "Christopher: embarrassed"
+          ],
+          "narration": "Colonel Tse'elon stands firmly in her olive fatigues, lowering her rifle slightly as she glares at the reporter with cool authority. Christopher raises one hand in a placating gesture, holding his microphone loosely while wearing an awkward, apologetic smile against the beige village walls.",
+          "sfx": [
+            {
+              "prompt": "quiet desert wind",
+              "audio": "/vignettes/audio/423f9ef52107a2ef.mp3"
+            }
+          ],
+          "narrationAudio": "/vignettes/audio/e08907253a2800fd.mp3",
+          "bbox": [
+            467,
+            67,
+            995,
+            516
+          ]
+        },
+        {
+          "id": "v7",
+          "image": "/vignettes/7.jpg",
+          "order": 7,
+          "scene": "Smoke rises in the alley as soldiers crouch and advance. Christopher holds out his microphone toward the Colonel, who stands unmoved.",
+          "characters": [
+            {
+              "characterId": "christopher",
+              "emotion": "eager",
+              "appearance": "smiling, microphone forward"
+            },
+            {
+              "characterId": "colonel",
+              "emotion": "impatient",
+              "appearance": "looking away, unimpressed"
+            }
+          ],
+          "lines": [
+            {
+              "speaker": "christopher",
+              "text": "I'm Christopher, by the way. How would you like to be on TV? I'm supposed to do a piece about female combat soldiers while I'm out here.",
+              "tagged": "[cheerfully] I'm Christopher, by the way. How would you like to be on TV? I'm supposed to do a piece about female combat soldiers while I'm out here.",
+              "audio": "/vignettes/audio/d083fa16db654816.mp3"
+            },
+            {
+              "speaker": "christopher",
+              "text": "You know, see how you ladies feel about the IDF abolishing the women's corps... find out what it's like to fight alongside the boys as equa--",
+              "tagged": "[rambling] You know, see how you ladies feel about the I-D-F abolishing the women's corps... find out what it's like to fight alongside the boys as equa--",
+              "audio": "/vignettes/audio/bdfd42f03b922ecd.mp3"
+            },
+            {
+              "speaker": "colonel",
+              "text": "You have to leave. Now. None of you are safe here.",
+              "tagged": "[firmly] You have to leave. Now. None of you are safe here.",
+              "audio": "/vignettes/audio/b2c86245e0823195.mp3"
+            }
+          ],
+          "emotionLabels": [
+            "Christopher: eager",
+            "Colonel: impatient"
+          ],
+          "narration": "In the dusty alleyway behind them, armed soldiers take defensive stances against rising plumes of smoke. Christopher steps forward with a breezy, eager smile, clutching his microphone and notepad. The Colonel stands completely unmoved, her eyes narrowed in stern exasperation.",
+          "sfx": [
+            {
+              "prompt": "distant gunfire and street commotion",
+              "audio": "/vignettes/audio/4a3eebf4d66af30f.mp3"
+            },
+            {
+              "prompt": "faint hissing smoke",
+              "audio": "/vignettes/audio/a4304ca4e469adde.mp3"
+            }
+          ],
+          "narrationAudio": "/vignettes/audio/84f1528693d83c96.mp3",
+          "bbox": [
+            51,
+            516,
+            987,
+            863
+          ]
+        },
+        {
+          "id": "v8",
+          "image": "/vignettes/8.jpg",
+          "order": 8,
+          "scene": "Christopher grins with his microphone while a crew member behind him waves his hands. The Colonel walks ahead, unbothered.",
+          "characters": [
+            {
+              "characterId": "crew",
+              "emotion": "anxious",
+              "appearance": "hands raised, wide eyes"
+            },
+            {
+              "characterId": "christopher",
+              "emotion": "charming",
+              "appearance": "confident smile"
+            },
+            {
+              "characterId": "colonel",
+              "emotion": "indifferent",
+              "appearance": "flat expression, rifle slung"
+            }
+          ],
+          "lines": [
+            {
+              "speaker": "crew",
+              "text": "Darling, we work for one of the top six cable news organizations in America. We don't have to do anything.",
+              "tagged": "[haughtily] Darling, we work for one of the top six cable news organizations in America. We don't have to do anything.",
+              "audio": "/vignettes/audio/f5885fece7ad2c05.mp3"
+            },
+            {
+              "speaker": "christopher",
+              "text": "But we will volunteer to be escorted out... if you let me interview you along the way. I'll even promise not to--",
+              "tagged": "[charming] But we will volunteer to be escorted out... if you let me interview you along the way. I'll even promise not to--",
+              "audio": "/vignettes/audio/ceb188ef7b98debf.mp3"
+            },
+            {
+              "speaker": "colonel",
+              "text": "Whatever. Come.",
+              "tagged": "[flatly] Whatever. Come.",
+              "audio": "/vignettes/audio/04fb004132d1c22b.mp3"
+            }
+          ],
+          "emotionLabels": [
+            "Crew member: anxious",
+            "Christopher: charming",
+            "Colonel: indifferent"
+          ],
+          "narration": "In the alley between urban buildings, the crew member throws his hands up defensively behind Christopher. The reporter flashes an easy, confident smile as he grips his microphone, trying to charm their guide. Walking ahead, the Colonel keeps her rifle in hand and remains completely unfazed.",
+          "sfx": [
+            {
+              "prompt": "distant city ambience",
+              "audio": "/vignettes/audio/48e6917daa46521e.mp3"
+            }
+          ],
+          "narrationAudio": "/vignettes/audio/e31c09718cdecb5d.mp3",
+          "bbox": [
+            63,
+            850,
+            423,
+            1518
+          ]
+        },
+        {
+          "id": "v9",
+          "image": "/vignettes/9.jpg",
+          "order": 9,
+          "scene": "Seen from above, the Colonel leads the soldiers and the news crew down a dusty street. Christopher walks at her side.",
+          "characters": [
+            {
+              "characterId": "colonel",
+              "emotion": "commanding",
+              "appearance": "pointing the way forward"
+            },
+            {
+              "characterId": "christopher",
+              "emotion": "curious",
+              "appearance": "leaning toward her as he walks"
+            }
+          ],
+          "lines": [
+            {
+              "speaker": "colonel",
+              "text": "Bo'u nelekh!",
+              "tagged": "[commanding] Bo'u nelekh!",
+              "audio": "/vignettes/audio/806111f4f09ba870.mp3"
+            },
+            {
+              "speaker": "christopher",
+              "text": "So, uh, you have a first name, Colonel?",
+              "tagged": "[playfully] So, uh, you have a first name, Colonel?",
+              "audio": "/vignettes/audio/de838050aa720f29.mp3"
+            },
+            {
+              "speaker": "colonel",
+              "text": "Yes...",
+              "tagged": "[pause] Yes...",
+              "audio": "/vignettes/audio/ee91c7d69131fbbe.mp3"
+            }
+          ],
+          "sfx": [
+            {
+              "prompt": "footsteps of a group walking on gravel",
+              "audio": "/vignettes/audio/1aa89f7c2123af28.mp3"
+            }
+          ],
+          "emotionLabels": [
+            "Colonel: commanding",
+            "Christopher: curious"
+          ],
+          "narration": "From high above, the group advances in steady stride across the barren dirt. The Colonel leads with firm, no-nonsense authority, slinging her rifle as she barks orders, while Christopher keeps pace beside her, looking over with relaxed, playful curiosity.",
+          "narrationAudio": "/vignettes/audio/991526f1778372cb.mp3",
+          "bbox": [
+            431,
+            851,
+            764,
+            1523
+          ]
+        },
+        {
+          "id": "v10",
+          "image": "/vignettes/10.jpg",
+          "order": 10,
+          "scene": "Close-up of Christopher, eyebrows raised in surprise. Behind him, a bearded cameraman keeps filming.",
+          "characters": [
+            {
+              "characterId": "christopher",
+              "emotion": "taken aback",
+              "appearance": "raised eyebrows, half smile"
+            }
+          ],
+          "lines": [
+            {
+              "speaker": "colonel",
+              "text": "...but I do not know what it is.",
+              "tagged": "[dryly] ...but I do not know what it is.",
+              "audio": "/vignettes/audio/80fedc425a53d658.mp3"
+            }
+          ],
+          "emotionLabels": [
+            "Christopher: taken aback"
+          ],
+          "narration": "Christopher's eyes widen in surprise as he absorbs the unexpected answer, his mouth parting slightly in bewilderment. Just behind him, his bearded cameraman keeps the video camera hoisted high, staring intently ahead through the lens.",
+          "sfx": [
+            {
+              "prompt": "subtle camera whir",
+              "audio": "/vignettes/audio/8065a2c52adc58d5.mp3"
+            }
+          ],
+          "narrationAudio": "/vignettes/audio/1cefbd815cc2434d.mp3",
+          "bbox": [
+            768,
+            857,
+            994,
+            1522
+          ]
+        }
+      ]
+    }
+  ]
+}

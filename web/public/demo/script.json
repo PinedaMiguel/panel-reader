@@ -1,0 +1,66 @@
+{
+  "id": "demo",
+  "title": "Demo comic (placeholder panels)",
+  "characters": [],
+  "pages": [
+    {
+      "id": "page1",
+      "panels": [
+        {
+          "id": "p1",
+          "image": "/demo/p1.svg",
+          "order": 1,
+          "scene": "A rainy night over the city.",
+          "characters": [],
+          "lines": [],
+          "emotionLabels": []
+        },
+        {
+          "id": "p2",
+          "image": "/demo/p2.svg",
+          "order": 2,
+          "scene": "A detective in a long coat stands under a streetlamp.",
+          "characters": [],
+          "lines": [],
+          "emotionLabels": []
+        },
+        {
+          "id": "p3",
+          "image": "/demo/p3.svg",
+          "order": 3,
+          "scene": "Close-up: his eyes narrow.",
+          "characters": [],
+          "lines": [],
+          "emotionLabels": []
+        },
+        {
+          "id": "p4",
+          "image": "/demo/p4.svg",
+          "order": 4,
+          "scene": "A shadow moves on the rooftop.",
+          "characters": [],
+          "lines": [],
+          "emotionLabels": []
+        },
+        {
+          "id": "p5",
+          "image": "/demo/p5.svg",
+          "order": 5,
+          "scene": "He runs up the fire escape.",
+          "characters": [],
+          "lines": [],
+          "emotionLabels": []
+        },
+        {
+          "id": "p6",
+          "image": "/demo/p6.svg",
+          "order": 6,
+          "scene": "The rooftop is empty, only a dropped hat remains.",
+          "characters": [],
+          "lines": [],
+          "emotionLabels": []
+        }
+      ]
+    }
+  ]
+}

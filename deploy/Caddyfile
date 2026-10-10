@@ -1,0 +1,17 @@
+# SITE_HOST is set in /etc/default/caddy, e.g. 1-2-3-4.sslip.io or the GoDaddy domain.
+# Caddy gets the HTTPS certificate automatically.
+{$SITE_HOST} {
+	encode gzip
+
+	handle /api/* {
+		reverse_proxy 127.0.0.1:8000 {
+			flush_interval -1 # stream progress events (SSE) immediately
+		}
+	}
+
+	handle {
+		root * /srv/panel-reader/web
+		try_files {path} /index.html
+		file_server
+	}
+}

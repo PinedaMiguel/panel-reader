@@ -1,0 +1,11 @@
+output/
+node_modules/
+dist/
+.env
+.env.*
+api/.venv/
+media/
+.DS_Store
+.neon
+.claude/
+skills-lock.json
