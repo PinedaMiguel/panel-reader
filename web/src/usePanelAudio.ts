@@ -1,37 +1,73 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Character, Panel } from './types'
 
 export type Caption = { speaker: string; speakerId: string | null; text: string }
 
-type Item = Caption & { audio?: string }
+type Item = Caption & { audio?: string; kind: 'narration' | 'line' }
 
 const SFX_VOLUME = 0.35
-const LOOK_MS = 3000 // time to take in a panel when nothing is spoken
+const LOOK_MS = 3000 // nothing to say: time to take in the art
 const MAX_SFX_WAIT_MS = 4500 // longer effects fade out on the page turn
 
-// Plays the active panel: the narrator's description (audiobook mode only), then each line of
-// dialogue, with SFX underneath. Calls onDone when the panel is finished so the reader turns the page.
+type Runner = {
+  panel: string
+  pause: () => void
+  resume: () => void
+  stop: () => void
+  skipNarration: () => void
+}
+
+// Plays the active panel as a queue: the narrator's description (audiobook mode only), then each line
+// of dialogue, with sound effects underneath. The queue survives pause/resume (it picks up mid-clip) and
+// reads audiobook mode live: turning it off cuts the current narration and moves on to the dialogue;
+// turning it on only affects narration still ahead. Panels with nothing to say get a short look plus
+// their sound effects in either mode. Calls onDone when the panel is finished so the reader turns the page.
 export function usePanelAudio(
   panel: Panel | undefined,
   characters: Character[],
-  listening: boolean,
-  narration: boolean,
+  playing: boolean,
+  audiobook: boolean,
   onDone: () => void,
   onBlocked?: () => void, // the browser refused to autoplay (no user gesture yet)
 ) {
   const [caption, setCaption] = useState<Caption | null>(null)
+  const runner = useRef<Runner | null>(null)
+  const audiobookRef = useRef(audiobook)
+  const onDoneRef = useRef(onDone)
+  const onBlockedRef = useRef(onBlocked)
+  onDoneRef.current = onDone
+  onBlockedRef.current = onBlocked
+
+  // New panel: the old queue is finished for good.
+  useEffect(() => {
+    return () => {
+      runner.current?.stop()
+      runner.current = null
+      setCaption(null)
+    }
+  }, [panel, characters])
 
   useEffect(() => {
-    if (!panel || !listening) {
-      setCaption(null)
-      return
-    }
+    if (!panel) return
+    if (!playing) return runner.current?.pause()
+    if (runner.current?.panel === panel.id) return runner.current.resume()
+    runner.current = start(panel, characters)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playing, panel, characters])
+
+  useEffect(() => {
+    audiobookRef.current = audiobook
+    if (!audiobook) runner.current?.skipNarration()
+  }, [audiobook])
+
+  function start(panel: Panel, characters: Character[]): Runner {
     const names = new Map(characters.map((c) => [c.id, c.name ?? c.id]))
     const items: Item[] = [
-      ...(narration && panel.narration
-        ? [{ speaker: 'Narrator', speakerId: null, text: panel.narration, audio: panel.narrationAudio }]
+      ...(panel.narration
+        ? [{ kind: 'narration' as const, speaker: 'Narrator', speakerId: null, text: panel.narration, audio: panel.narrationAudio }]
         : []),
       ...panel.lines.map((l) => ({
+        kind: 'line' as const,
         speaker: (l.speaker && names.get(l.speaker)) || 'Unknown',
         speakerId: l.speaker,
         text: l.text,
@@ -39,80 +75,130 @@ export function usePanelAudio(
       })),
     ]
 
-    let cancelled = false
-    let current: HTMLAudioElement | null = null
-    const sfx = (panel.sfx ?? []).filter((s) => s.audio).map((s) => new Audio(s.audio))
-    const sfxDone = Promise.all(
-      sfx.map(
-        (a) =>
-          new Promise<void>((resolve) => {
-            a.volume = SFX_VOLUME
-            a.onended = () => resolve()
-            a.onerror = () => resolve()
-            a.play().catch(() => resolve())
-          }),
-      ),
-    )
-    const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
+    let stopped = false
+    let paused = false
+    const waiters: (() => void)[] = []
+    let currentAudio: HTMLAudioElement | null = null
+    let speakingAloud = false // browser speech fallback in progress
+    let currentKind: Item['kind'] | null = null
+    let finishCurrent: (() => void) | null = null
+    let sfx: HTMLAudioElement[] = []
+
+    const gate = () => (paused ? new Promise<void>((r) => waiters.push(r)) : Promise.resolve())
+    // A wait that stands still while paused.
+    const hold = async (ms: number, until?: () => boolean) => {
+      for (let t = 0; t < ms && !stopped && !until?.(); t += 100) {
+        await gate()
+        await new Promise((r) => setTimeout(r, 100))
+      }
+    }
 
     const speak = (item: Item) =>
       new Promise<void>((resolve) => {
+        currentKind = item.kind
+        finishCurrent = () => {
+          currentAudio?.pause()
+          if (speakingAloud) speechSynthesis.cancel()
+          resolve()
+        }
         if (item.audio) {
-          current = new Audio(item.audio)
-          current.onended = () => resolve()
-          current.onerror = () => resolve()
-          current.play().catch((e) => {
-            if (e?.name === 'NotAllowedError') {
-              cancelled = true // don't race silently through the queue
-              onBlocked?.()
-            }
-            resolve()
+          const a = (currentAudio = new Audio(item.audio))
+          a.onended = () => resolve()
+          a.onerror = () => resolve()
+          a.play().catch((e) => {
+            if (e?.name === 'NotAllowedError') onBlockedRef.current?.() // the reader pauses; Play retries
+            else resolve()
           })
         } else {
           // No rendered clip (quota ran out, or not generated yet): use the browser's voice.
           const u = new SpeechSynthesisUtterance(item.text)
-          u.onend = () => resolve()
-          u.onerror = () => resolve()
+          speakingAloud = true
+          u.onend = u.onerror = () => {
+            speakingAloud = false
+            resolve()
+          }
           speechSynthesis.speak(u)
         }
+      }).finally(() => {
+        currentAudio = null
+        currentKind = null
+        finishCurrent = null
       })
 
     ;(async () => {
+      sfx = (panel.sfx ?? []).filter((s) => s.audio).map((s) => new Audio(s.audio))
+      let sfxDone = !sfx.length
+      Promise.all(
+        sfx.map(
+          (a) =>
+            new Promise<void>((resolve) => {
+              a.volume = SFX_VOLUME
+              a.onended = a.onerror = () => resolve()
+              a.play().catch(() => resolve())
+            }),
+        ),
+      ).then(() => (sfxDone = true))
+
+      let spoken = 0
       for (const item of items) {
-        if (cancelled) return
+        await gate()
+        if (stopped) return
+        // Read the mode at the moment the narration would start: never go back for one already passed.
+        if (item.kind === 'narration' && !audiobookRef.current) continue
         setCaption(item)
+        spoken++
         await speak(item)
+        if (stopped) return
       }
-      if (!items.length) {
-        // Nothing to say (or narrator off on a silent panel): give the art a moment, and let any
-        // sound effect finish, within reason.
-        await Promise.all([wait(LOOK_MS), Promise.race([sfxDone, wait(MAX_SFX_WAIT_MS)])])
+      setCaption(null)
+      if (!spoken) {
+        // Nothing to say (no dialogue, narrator off or absent): give the art a moment and let a sound
+        // effect finish, within reason.
+        await hold(LOOK_MS)
+        await hold(MAX_SFX_WAIT_MS - LOOK_MS, () => sfxDone)
       }
-      if (!cancelled) {
-        setCaption(null)
-        onDone()
-      }
+      await gate()
+      if (!stopped) onDoneRef.current()
     })()
 
-    return () => {
-      cancelled = true
-      current?.pause()
-      speechSynthesis.cancel()
-      // Fade sound effects out instead of cutting them off mid-sound.
-      sfx.forEach((a) => {
-        const step = a.volume / 8
-        const t = setInterval(() => {
-          a.volume = Math.max(0, a.volume - step)
-          if (a.volume <= 0) {
-            clearInterval(t)
-            a.pause()
-          }
-        }, 50)
-      })
+    return {
+      panel: panel.id,
+      pause() {
+        paused = true
+        currentAudio?.pause()
+        if (speakingAloud) speechSynthesis.pause()
+        sfx.forEach((a) => a.pause())
+      },
+      resume() {
+        if (!paused) return
+        paused = false
+        currentAudio?.play().catch(() => {})
+        if (speakingAloud) speechSynthesis.resume()
+        sfx.forEach((a) => !a.ended && a.play().catch(() => {}))
+        waiters.splice(0).forEach((r) => r())
+      },
+      stop() {
+        stopped = true
+        currentAudio?.pause()
+        speechSynthesis.cancel()
+        waiters.splice(0).forEach((r) => r())
+        // Fade sound effects out instead of cutting them off mid-sound.
+        sfx.forEach((a) => {
+          const step = a.volume / 8
+          const t = setInterval(() => {
+            a.volume = Math.max(0, a.volume - step)
+            if (a.volume <= 0) {
+              clearInterval(t)
+              a.pause()
+            }
+          }, 50)
+        })
+      },
+      skipNarration() {
+        if (currentKind === 'narration') finishCurrent?.()
+      },
     }
-    // onDone is read fresh each run; restarting playback when it changes identity would cut audio.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [panel, listening, narration, characters])
+  }
 
   return caption
 }

@@ -60,7 +60,7 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
   const [arrived, setArrived] = useState(startIndex >= 0)
   const refs = useRef<(HTMLElement | null)[]>([])
   const cover = useRef<HTMLElement | null>(null)
-  const [listening, setListening] = useState(false)
+  const [playing, setPlaying] = useState(false)
   const [audiobook, setAudiobook] = useState(true)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settings] = useSettings()
@@ -112,29 +112,29 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
     el?.scrollIntoView({ behavior: 'smooth' })
   }
 
-  const toggleListening = () => {
-    if (!listening && active < 0) goTo(0) // start from the first panel, not the title card
-    setListening((v) => !v)
+  const togglePlay = () => {
+    if (!playing && active < 0) goTo(0) // start from the first panel, not the title card
+    setPlaying((v) => !v)
   }
 
-  // Listening always turns the pages; audiobook mode only decides whether the narrator speaks.
+  // Playing always turns the pages; audiobook mode only decides whether the narrator speaks.
   const caption = usePanelAudio(
     panels[active],
     comic.characters,
-    listening,
+    playing,
     audiobook,
     () => {
       if (active + 1 < panels.length) setTimeout(() => goTo(active + 1), 600)
-      else setListening(false)
+      else setPlaying(false)
     },
-    () => setListening(false),
+    () => setPlaying(false),
   )
 
-  // Arriving from the processing view: start listening as the curtain lifts. The click that started
+  // Arriving from the processing view: start playing as the curtain lifts. The click that started
   // the upload/replay was in this same page session, so the browser allows the audio.
   useEffect(() => {
     if (startIndex < 0) return
-    const t = setTimeout(() => setListening(true), 450)
+    const t = setTimeout(() => setPlaying(true), 450)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -146,8 +146,8 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
         setSettingsOpen(true)
         return
       }
-      if (e.key === 'l' || e.key === 'L') {
-        toggleListening()
+      if (e.key === 'p' || e.key === 'P' || e.key === 'l' || e.key === 'L') {
+        togglePlay()
         return
       }
       if (e.key === 'a' || e.key === 'A') {
@@ -177,7 +177,7 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
 
   // Panel display box (matches .frame) and the camera that lines the page up behind it.
   // While captions show, the panel shrinks into the space above them instead of being covered.
-  const reserved = listening && settings.captions ? CAPTION_SPACE : 0
+  const reserved = caption && settings.captions ? CAPTION_SPACE : 0
   const boxW = Math.min(vp.w - 2 * PAD, MAX_PANEL_W)
   const boxH = vp.h - 2 * PAD - reserved
   const center = { x: vp.w / 2, y: PAD + boxH / 2 }
@@ -206,8 +206,8 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
           <p>
             {panels.length} panels · {comic.characters.length} voices
           </p>
-          <button type="button" className="cover-listen" onClick={toggleListening}>
-            ▶ Listen from the start
+          <button type="button" className="cover-listen" onClick={togglePlay}>
+            ▶ Play from the start
           </button>
           <p className="scroll-cue" aria-hidden="true">
             Scroll <span />
@@ -257,8 +257,8 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
       </div>
 
       <div className="controls" role="toolbar" aria-label="Reader controls">
-        <button type="button" aria-pressed={listening} onClick={toggleListening}>
-          {listening ? 'Pause' : 'Listen'} <kbd>L</kbd>
+        <button type="button" aria-pressed={playing} onClick={togglePlay}>
+          {playing ? 'Pause' : 'Play'} <kbd>P</kbd>
         </button>
         <button
           type="button"
