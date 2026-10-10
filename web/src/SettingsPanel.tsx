@@ -3,15 +3,15 @@ import { useSettings, type ColorMode, type FontChoice } from './settings'
 
 const FONTS: [FontChoice, string][] = [
   ['default', 'Default'],
-  ['atkinson', 'Atkinson Hyperlegible (low vision)'],
+  ['atkinson', 'Atkinson (low vision)'],
   ['opendyslexic', 'OpenDyslexic (dyslexia)'],
 ]
 
 const COLORS: [ColorMode, string][] = [
-  ['none', 'Original colours'],
-  ['protanopia', 'Protanopia (red-blind) correction'],
-  ['deuteranopia', 'Deuteranopia (green-blind) correction'],
-  ['tritanopia', 'Tritanopia (blue-blind) correction'],
+  ['none', 'Original'],
+  ['protanopia', 'Red-blind'],
+  ['deuteranopia', 'Green-blind'],
+  ['tritanopia', 'Blue-blind'],
   ['contrast', 'High contrast'],
   ['grayscale', 'Grayscale'],
 ]
@@ -38,50 +38,32 @@ export default function SettingsPanel({ open, onClose, languages, translating }:
     <dialog ref={ref} className="settings" onClose={onClose} aria-labelledby="settings-title">
       <h2 id="settings-title">Reading settings</h2>
 
-      <label>
-        Font
-        <select value={s.font} onChange={(e) => set({ font: e.target.value as FontChoice })}>
-          {FONTS.map(([v, l]) => (
-            <option key={v} value={v}>{l}</option>
-          ))}
-        </select>
-      </label>
+      <Choice label="Font" value={s.font} options={FONTS} onPick={(font) => set({ font })} />
 
-      <label>
-        Caption size: {Math.round(s.textScale * 100)}%
-        <input
-          type="range"
-          min={0.8}
-          max={2}
-          step={0.1}
-          value={s.textScale}
-          onChange={(e) => set({ textScale: Number(e.target.value) })}
+      <div className="choice" role="group" aria-labelledby="caption-size">
+        <span id="caption-size">Caption size: {Math.round(s.textScale * 100)}%</span>
+        <div className="choice-row">
+          <button type="button" aria-label="Smaller captions" disabled={s.textScale <= 0.8}
+            onClick={() => set({ textScale: Math.max(0.8, +(s.textScale - 0.2).toFixed(1)) })}>
+            A−
+          </button>
+          <button type="button" aria-label="Larger captions" disabled={s.textScale >= 2}
+            onClick={() => set({ textScale: Math.min(2, +(s.textScale + 0.2).toFixed(1)) })}>
+            A+
+          </button>
+        </div>
+      </div>
+
+      <Choice label="Colours" value={s.color} options={COLORS} onPick={(color) => set({ color })} />
+
+      {languages && (
+        <Choice
+          label="Language"
+          value={s.lang}
+          options={[['original', 'Original'], ...Object.entries(languages)]}
+          onPick={(lang) => set({ lang })}
         />
-      </label>
-
-      <label>
-        Colours
-        <select value={s.color} onChange={(e) => set({ color: e.target.value as ColorMode })}>
-          {COLORS.map(([v, l]) => (
-            <option key={v} value={v}>{l}</option>
-          ))}
-        </select>
-      </label>
-
-      <label>
-        Language
-        <select
-          value={languages ? s.lang : 'original'}
-          disabled={!languages}
-          onChange={(e) => set({ lang: e.target.value })}
-        >
-          <option value="original">Original</option>
-          {languages &&
-            Object.entries(languages).map(([code, name]) => (
-              <option key={code} value={code}>{name}</option>
-            ))}
-        </select>
-      </label>
+      )}
       {!languages && <p className="note">Translation is available for uploaded comics.</p>}
       {translating && (
         <p className="note" role="status">
@@ -114,11 +96,35 @@ export default function SettingsPanel({ open, onClose, languages, translating }:
             Recalibrate eyes
           </button>
         )}
+        <button type="button" className="recalibrate" onClick={() => (onClose(), set({ onboarded: false }))}>
+          Run face setup again
+        </button>
       </fieldset>
 
       <form method="dialog">
         <button type="submit">Done</button>
       </form>
     </dialog>
+  )
+}
+
+// Buttons instead of a <select>: a native dropdown can't be opened or picked from by eye gaze.
+function Choice<T extends string>({ label, value, options, onPick }: {
+  label: string
+  value: T
+  options: [T, string][]
+  onPick: (v: T) => void
+}) {
+  return (
+    <div className="choice" role="group" aria-label={label}>
+      <span>{label}</span>
+      <div className="choice-row">
+        {options.map(([v, l]) => (
+          <button key={v} type="button" aria-pressed={v === value} onClick={() => onPick(v)}>
+            {l}
+          </button>
+        ))}
+      </div>
+    </div>
   )
 }

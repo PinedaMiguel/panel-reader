@@ -3,6 +3,7 @@ import ColorFilters from './ColorFilters'
 import Home, { type ProcessJob } from './Home'
 import Processing from './Processing'
 import GazeLayer from './face/GazeLayer'
+import Welcome from './face/Welcome'
 import Reader from './Reader'
 import { useSettings } from './settings'
 import type { Comic } from './types'
@@ -153,7 +154,7 @@ export default function App() {
     <>
       {page}
       {overlay}
-      {settings.gaze && <GazeLayer />}
+      {settings.onboarded ? settings.gaze && <GazeLayer /> : <Welcome />}
     </>
   )
 }

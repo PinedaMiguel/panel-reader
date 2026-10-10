@@ -11,8 +11,9 @@ const POINTS = [0.1, 0.5, 0.9].flatMap((y) => [0.1, 0.5, 0.9].map((x) => ({ x, y
 const POINT_MS = 1600
 const SETTLE_MS = 600
 
-export default function GazeLayer() {
-  const [cal, setCal] = useState<Calibration | null>(() => loadCalibration())
+// `fresh`: always calibrate on mount (the first-visit setup). `onCalibrated` fires when a calibration is saved.
+export default function GazeLayer({ fresh = false, onCalibrated }: { fresh?: boolean; onCalibrated?: () => void }) {
+  const [cal, setCal] = useState<Calibration | null>(() => (fresh ? null : loadCalibration()))
   const [status, setStatus] = useState<'starting' | 'ready' | 'denied'>('starting')
   const [calibrating, setCalibrating] = useState(!cal)
   const [point, setPoint] = useState(0)
@@ -21,6 +22,8 @@ export default function GazeLayer() {
   const [toast, setToast] = useState<string | null>(null)
   const calRef = useRef(cal)
   calRef.current = cal
+  const done = useRef(onCalibrated)
+  done.current = onCalibrated
 
   useEffect(() => {
     let alive = true
@@ -61,6 +64,7 @@ export default function GazeLayer() {
           saveCalibration(c)
           setCal(c)
           setCalibrating(false)
+          done.current?.()
           setToast('Calibrated. Look at a button and hold your gaze to press it.')
           setTimeout(() => setToast(null), 4000)
           return
@@ -104,6 +108,7 @@ export default function GazeLayer() {
       }
     })
     const offG = onGesture((g) => {
+      if (document.querySelector('[data-gaze-practice]')) return // the setup is practising gestures, not acting on them
       const dialog = [...document.querySelectorAll('dialog')].find((d) => d.open)
       if (g === 'shake' && dialog) dialog.close() // a synthetic Esc doesn't close a real dialog
       else if (g === 'nod' && (dialog || !document.querySelector('.reader'))) target?.click()

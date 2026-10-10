@@ -71,7 +71,7 @@ export function targets(): HTMLElement[] {
   const sel = 'button, a[href], [role="button"], input[type="checkbox"], summary, [data-gaze-target]'
   const out: HTMLElement[] = []
   // Inside an open dialog only the dialog's controls count, like a keyboard would.
-  const dialog = [...document.querySelectorAll('dialog')].find((d) => d.open)
+  const dialog = [...document.querySelectorAll('dialog')].find((d) => d.open) ?? document.querySelector('[aria-modal="true"]')
   for (const el of (dialog ?? document).querySelectorAll<HTMLElement>(sel)) {
     if ((el as HTMLButtonElement).disabled || el.closest('[aria-hidden="true"]')) continue
     const r = el.getBoundingClientRect()

@@ -31,6 +31,7 @@ const gestureListeners = new Set<GestureListener>()
 let last: FaceFrame | null = null
 
 export const lastFrame = () => last
+export const cameraStream = () => stream
 
 export function onFrame(fn: Listener) {
   listeners.add(fn)

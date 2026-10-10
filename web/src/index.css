@@ -766,7 +766,7 @@ html:has(.app) body { background: var(--surface-0); }
 
 /* Settings dialog */
 .settings {
-  width: min(440px, calc(100% - 32px));
+  width: min(560px, calc(100% - 32px));
   max-height: calc(100svh - 32px);
   padding: 24px;
   border: 1px solid rgb(255 255 255 / 0.25);
@@ -1220,3 +1220,47 @@ html:has(.app) body { background: var(--surface-0); }
   .teaser img.on { animation: teaser-push 3.4s ease-out both; }
   @keyframes teaser-push { from { transform: scale(1.04); } to { transform: scale(1.12); } }
 }
+
+/* First-visit face setup */
+.welcome {
+  position: fixed; inset: 0; z-index: 9000; display: grid; place-items: center; padding: 16px;
+  background: radial-gradient(circle at 50% 30%, #1d1d20, #000 70%); color: var(--fg); font-family: var(--font);
+}
+.welcome-card { width: min(560px, 100%); display: grid; gap: 16px; justify-items: center; text-align: center; }
+.welcome-card h1 { margin: 0; font: 700 clamp(1.7rem, 4vw, 2.4rem) / 1.15 var(--title-font); }
+.welcome-card p { margin: 0; line-height: 1.55; color: var(--muted); }
+.welcome-kicker { color: var(--accent) !important; font: 400 1.4rem var(--display-font); letter-spacing: 0.04em; }
+.welcome-cam {
+  position: relative; width: min(320px, 80vw); aspect-ratio: 4 / 3; border-radius: 18px; overflow: hidden;
+  border: 3px solid var(--hairline); background: var(--surface-1); transition: border-color 0.3s;
+}
+.welcome-cam.found { border-color: var(--accent); }
+.welcome-cam video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+.welcome-cam span {
+  position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); white-space: nowrap;
+  padding: 4px 12px; border-radius: 999px; background: rgb(0 0 0 / 0.75); font-size: 0.9rem;
+}
+.welcome-note { font-size: 0.85rem; }
+.welcome-gestures { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; font-size: 1.2rem; }
+.welcome-gestures li {
+  display: flex; gap: 14px; align-items: center; padding: 14px 22px; border-radius: 14px;
+  border: 2px solid var(--hairline); background: var(--surface-1); transition: border-color 0.3s;
+}
+.welcome-gestures li span { width: 1.5em; color: var(--accent); font-weight: 700; }
+.welcome-gestures li.done { border-color: var(--accent); }
+.welcome-fallback {
+  font: 600 0.95rem var(--font); padding: 10px 18px; border-radius: 12px; cursor: pointer;
+  border: 1px solid var(--hairline); background: rgb(0 0 0 / 0.6); color: var(--muted);
+}
+.welcome-fallback:hover { color: var(--fg); border-color: var(--accent); }
+.welcome-corner { position: fixed; z-index: 10000; right: 16px; bottom: 16px; }
+
+/* Settings choices: gaze-friendly buttons */
+.settings .choice { display: grid; gap: 8px; margin-bottom: 16px; }
+.choice-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.choice-row button {
+  font: 600 0.9rem var(--font); padding: 8px 12px; border-radius: 10px; cursor: pointer;
+  border: 1px solid rgb(255 255 255 / 0.3); background: #000; color: var(--fg);
+}
+.choice-row button[aria-pressed='true'] { background: var(--accent); border-color: var(--accent); color: #000; }
+.choice-row button:disabled { opacity: 0.4; cursor: default; }

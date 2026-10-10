@@ -12,9 +12,11 @@ export type Settings = {
   lang: string // 'original' or a language code
   heart: boolean // camera: passive enjoyment meter while reading
   gaze: boolean // camera: hands-free control with eye gaze + head gestures
+  onboarded: boolean // finished (or skipped) the first-visit face setup
 }
 
-// Every accessibility feature is opt-in: the defaults are the plain reading experience.
+// Face control (gaze + head gestures, with the heart meter) is the primary way in, set up on the first
+// visit; mouse and keyboard stay as the fallback. Every other accessibility feature is opt-in.
 export const DEFAULTS: Settings = {
   font: 'default',
   textScale: 1,
@@ -22,8 +24,9 @@ export const DEFAULTS: Settings = {
   emotions: false,
   captions: false,
   lang: 'original',
-  heart: false,
-  gaze: false,
+  heart: true,
+  gaze: true,
+  onboarded: false,
 }
 
 const KEY = 'panel-reader-settings'
