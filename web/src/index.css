@@ -1436,3 +1436,4 @@ body:has(.reader) .switch-legend, body:has(.welcome) .switch-legend, body:has(.l
   .lineup-info { bottom: 80px; }
   .lineup .teaser-line { display: none; }
 }
+.next-reason { margin: 0; max-width: 46ch; font-size: 1.15rem; line-height: 1.5; color: #e8e3de; }

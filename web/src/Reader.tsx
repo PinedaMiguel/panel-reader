@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import Finale from './Finale'
+import UpNext from './UpNext'
 import HeartMeter from './face/HeartMeter'
 import PageView from './PageView'
 import SettingsPanel from './SettingsPanel'
@@ -149,6 +150,16 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
     const k = order.indexOf(active)
     goTo(order[Math.max(0, Math.min(order.length - 1, k + dir))])
   }
+
+  // Finished: after the pull-back to the full page, offer what to watch next ("Stay here" keeps the finale).
+  const [upNext, setUpNext] = useState<'no' | 'show' | 'stayed'>('no')
+  useEffect(() => {
+    if (active !== END) return setUpNext((u) => (u === 'stayed' ? u : 'no'))
+    if (upNext !== 'no') return
+    const t = setTimeout(() => setUpNext('show'), 2500)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active])
 
   const togglePlay = () => {
     if (!playing && active === -1) goTo(order[1]) // start from the first page, not the title card
@@ -368,6 +379,8 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
           }}
         />
       )}
+
+      {upNext === 'show' && <UpNext comicId={comic.id} onStay={() => setUpNext('stayed')} />}
 
       <div className="topbar" aria-hidden="true">
         <span style={{ width: `${(Math.min(panels.length, Math.max(0, active + 1)) / panels.length) * 100}%` }} />

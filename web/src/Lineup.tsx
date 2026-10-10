@@ -13,9 +13,21 @@ type Data = TeaserData & { synopsis: string; genres: string[]; moods: string[]; 
 
 const COUNTDOWN_S = 6
 export const LINEUP_SEEN = 'panel-reader-lineup-seen'
+const LINEUP_SKIP = 'panel-reader-lineup-skip'
+
+// Back to the home page with a fresh lineup (new random shows, leaving out `skip`).
+export function freshLineup(skip: string) {
+  try {
+    sessionStorage.removeItem(LINEUP_SEEN)
+    sessionStorage.setItem(LINEUP_SKIP, skip)
+  } catch {
+    // storage blocked: home without the lineup
+  }
+  location.assign('./')
+}
 
 const shuffle = <T,>(a: T[]) => a.map((x) => [Math.random(), x] as const).sort((p, q) => p[0] - q[0]).map(([, x]) => x)
-const play = (id: string) => {
+export const play = (id: string) => {
   try {
     sessionStorage.setItem(LINEUP_SEEN, '1')
   } catch {
@@ -26,7 +38,15 @@ const play = (id: string) => {
 
 export default function Lineup({ comics, onDone }: { comics: LineupShow[]; onDone: () => void }) {
   const [settings] = useSettings()
-  const picks = useMemo(() => shuffle(comics.filter((c) => c.cover)).slice(0, 3), [comics])
+  const picks = useMemo(() => {
+    let skip: string | null = null
+    try {
+      skip = sessionStorage.getItem(LINEUP_SKIP)
+    } catch {
+      // no storage: nothing to skip
+    }
+    return shuffle(comics.filter((c) => c.cover && c.id !== skip)).slice(0, 3)
+  }, [comics])
   const [data, setData] = useState<Record<string, Data>>({})
   const [i, setI] = useState(0)
   const [scores, setScores] = useState<Record<string, number>>({})

@@ -2,25 +2,8 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import Lineup, { LINEUP_SEEN } from './Lineup'
 import Preview from './Preview'
 import { loadHearts } from './face/heart'
+import { tone, type Listed } from './recommend'
 import { useSettings } from './settings'
-
-type Listed = {
-  id: string
-  title: string
-  panels: number
-  voices?: number
-  languages?: string[]
-  cover?: string | null
-  genres?: string[] | null
-  moods?: string[] | null
-}
-
-// Tone from Gemini's genre and mood tags: above 0 is dark (horror, crime, tense), below 0 light (comedy,
-// wholesome, whimsical). Only the sign and order matter.
-const DARK = /horror|thrill|crime|noir|myster|suspens|dark|tense|grit|eerie|creep|chill|macabre|sinister|spook|ominous|grim|\bwar\b|political|conspira|supernatural|menac/
-const LIGHT = /comed|humor|humour|funny|wholesome|whims|light|playful|heartwarm|cozy|charm|silly|feel-good|cheer|family|child|fairy|dream|gentle|sweet|fantasy/
-const tone = (c: { genres?: string[] | null; moods?: string[] | null }) =>
-  [...(c.genres ?? []), ...(c.moods ?? [])].reduce((t, w) => t + (DARK.test(w.toLowerCase()) ? 1 : 0) - (LIGHT.test(w.toLowerCase()) ? 1 : 0), 0)
 
 export type ProcessJob = { id: string; files: File[]; title: string }
 
