@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import Preview from './Preview'
 import Scanner from './Scanner'
+import { loadHearts } from './face/heart'
 import { useSettings } from './settings'
 
 type Listed = {
@@ -9,6 +11,8 @@ type Listed = {
   voices?: number
   languages?: string[]
   cover?: string | null
+  genres?: string[] | null
+  moods?: string[] | null
 }
 type Progress = { stage: string; done: number; total: number; error: string | null }
 
@@ -36,6 +40,7 @@ export default function Home({ onProcess }: { onProcess: (job: ProcessJob) => vo
   const [scanning, setScanning] = useState(false)
   const [target, setTarget] = useState('') // '' = new comic, else id of a comic to continue
   const [query, setQuery] = useState('')
+  const [previewing, setPreviewing] = useState<Listed | null>(null)
   const [settings, set] = useSettings()
   const fileInput = useRef<HTMLInputElement>(null)
 
@@ -81,6 +86,53 @@ export default function Home({ onProcess }: { onProcess: (job: ProcessJob) => vo
   }
 
   const busy = !!progress && progress.stage !== 'error'
+
+  // "Because you liked X": X is the comic your heart meter rated highest; the rest are ranked by how
+  // many genre and mood tags they share with it.
+  const hearts = loadHearts()
+  const tags = (c: Listed) => new Set([...(c.genres ?? []), ...(c.moods ?? [])])
+  const liked = comics
+    .filter((c) => (hearts[c.id]?.score ?? 0) > 55 && c.genres)
+    .sort((a, b) => hearts[b.id].score - hearts[a.id].score)[0]
+  const because = liked
+    ? comics
+        .filter((c) => c.id !== liked.id)
+        .map((c) => ({ c, shared: [...tags(c)].filter((t) => tags(liked).has(t)).length }))
+        .filter((r) => r.shared > 0)
+        .sort((a, b) => b.shared - a.shared)
+        .map((r) => r.c)
+    : []
+  const card = (c: Listed) => (
+    <li key={c.id} className="card">
+      <a
+        href={`?id=${c.id}`}
+        onClick={(e) => {
+          if (e.metaKey || e.ctrlKey) return
+          e.preventDefault()
+          setPreviewing(c)
+        }}
+      >
+        {c.cover && <img src={c.cover} alt="" loading="lazy" />}
+        <span className="card-body">
+          <span className="card-title">{c.title}</span>
+          <span className="card-meta">
+            {c.panels} panels{c.voices ? ` · ${c.voices} voices` : ''}
+          </span>
+          <span className="card-status">
+            ▶ Preview
+            {c.languages?.map((l) => (
+              <span key={l} className="lang">
+                {l.toUpperCase()}
+              </span>
+            ))}
+          </span>
+        </span>
+      </a>
+      <button type="button" className="card-replay" onClick={() => replay(c)}>
+        How it was read
+      </button>
+    </li>
+  )
   const featured = comics[0]
   const shown = comics.filter((c) => c.title.toLowerCase().includes(query.trim().toLowerCase()))
 
@@ -179,6 +231,16 @@ export default function Home({ onProcess }: { onProcess: (job: ProcessJob) => vo
           </div>
         )}
 
+        {liked && because.length > 0 && (
+          <section className="shelf" aria-labelledby="shelf-because">
+            <div className="shelf-head">
+              <h2 id="shelf-because">Because you liked {liked.title}</h2>
+              <p>Picked from your heart meter. Measured on this device only.</p>
+            </div>
+            <ul className="rail">{because.map(card)}</ul>
+          </section>
+        )}
+
         {comics.length > 0 && (
           <section className="shelf" aria-labelledby="shelf-comics">
             <div className="shelf-head">
@@ -186,30 +248,7 @@ export default function Home({ onProcess }: { onProcess: (job: ProcessJob) => vo
               <p>Saved in Neon. Every page you add keeps the same voices.</p>
             </div>
             <ul className="rail">
-              {shown.map((c) => (
-                <li key={c.id} className="card">
-                  <a href={`?id=${c.id}`}>
-                    {c.cover && <img src={c.cover} alt="" loading="lazy" />}
-                    <span className="card-body">
-                      <span className="card-title">{c.title}</span>
-                      <span className="card-meta">
-                        {c.panels} panels{c.voices ? ` · ${c.voices} voices` : ''}
-                      </span>
-                      <span className="card-status">
-                        ▶ Ready to listen
-                        {c.languages?.map((l) => (
-                          <span key={l} className="lang">
-                            {l.toUpperCase()}
-                          </span>
-                        ))}
-                      </span>
-                    </span>
-                  </a>
-                  <button type="button" className="card-replay" onClick={() => replay(c)}>
-                    How it was read
-                  </button>
-                </li>
-              ))}
+              {shown.map(card)}
               {!shown.length && <li className="empty">No comics match “{query}”.</li>}
             </ul>
           </section>
@@ -278,6 +317,7 @@ export default function Home({ onProcess }: { onProcess: (job: ProcessJob) => vo
           Made at KnightHacks IX with Gemini, ElevenLabs, Hugging Face (Magi v2) and Neon.
         </footer>
       </main>
+      {previewing && <Preview id={previewing.id} title={previewing.title} onClose={() => setPreviewing(null)} />}
     </div>
   )
 }

@@ -38,6 +38,8 @@ SCHEMA = [
     # SHA-256 of the uploaded page file: an identical upload reuses this page instead of reprocessing.
     "alter table pages add column if not exists hash text",
     "create index if not exists pages_hash on pages (hash)",
+    # "What to watch next": spoiler-free synopsis, tags, teaser panels (written once by Gemini).
+    "alter table comics add column if not exists preview jsonb",
     """create table if not exists panels (
         comic_id text not null references comics(id) on delete cascade,
         id text not null,
@@ -238,12 +240,22 @@ def apply_translation(comic: dict, lang: str, sign: bool = True) -> bool:
     return True
 
 
+def get_preview(cid: str) -> dict | None:
+    rows = query("select preview from comics where id = $1", cid)
+    return rows[0]["preview"] if rows else None
+
+
+def save_preview(cid: str, preview: dict) -> None:
+    query("update comics set preview = $2::jsonb where id = $1", cid, json.dumps(preview, ensure_ascii=False))
+
+
 def list_comics() -> list[dict]:
     rows = query(
         """select c.id, c.title, count(p.id)::int as panels,
                   (select image_key from panels f where f.comic_id = c.id order by page_idx, ord limit 1) as cover,
                   (select count(*)::int from characters ch where ch.comic_id = c.id) as voices,
-                  coalesce((select json_agg(distinct t.lang) from translations t where t.comic_id = c.id), '[]') as languages
+                  coalesce((select json_agg(distinct t.lang) from translations t where t.comic_id = c.id), '[]') as languages,
+                  c.preview -> 'genres' as genres, c.preview -> 'moods' as moods
            from comics c left join panels p on p.comic_id = c.id
            group by c.id order by c.updated_at desc"""
     )

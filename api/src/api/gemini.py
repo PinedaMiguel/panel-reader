@@ -225,3 +225,49 @@ def translate_page(panels: list[dict], language: str) -> list[PanelTr]:
         config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=PageTr),
     )
     return resp.parsed.panels
+
+
+
+class TeaserLine(BaseModel):
+    panel_id: str
+    line_index: int
+
+
+class Preview(BaseModel):
+    synopsis: str
+    genres: list[str]
+    moods: list[str]
+    main_characters: list[str]
+    teaser_panels: list[str]
+    teaser_line: TeaserLine | None
+
+
+PREVIEW_PROMPT = """You are writing the "what to watch next" preview for a comic in a reading app, like a streaming
+service's title page. From the script below:
+- synopsis: 2-3 sentences, spoiler-free, written as an intriguing hook (setting, who, what's at stake). No ending.
+- genres: 2-4 short genre tags (e.g. "superhero", "political thriller", "jungle adventure", "war drama").
+- moods: 2-3 short mood tags (e.g. "pulpy", "tense", "witty", "eerie").
+- main_characters: the 2-4 most important character ids, most important first.
+- teaser_panels: 3-4 panel ids, in reading order, that make the most enticing teaser without spoiling the end.
+- teaser_line: the single most intriguing line of dialogue (panel id + its line index), or null if there is none.
+
+Script (JSON):
+{script}
+"""
+
+
+def preview(comic: dict) -> Preview:
+    script = {
+        "title": comic["title"],
+        "characters": [{"id": c["id"], "name": c.get("name"), "description": c.get("description", "")} for c in comic["characters"]],
+        "panels": [
+            {"id": p["id"], "scene": p.get("scene", ""), "narration": p.get("narration") or "",
+             "lines": [{"i": i, "speaker": l.get("speaker"), "text": l["text"]} for i, l in enumerate(p.get("lines", []))]}
+            for page in comic["pages"] for p in page["panels"]
+        ],
+    }
+    resp = generate(
+        contents=PREVIEW_PROMPT.format(script=json.dumps(script, ensure_ascii=False)),
+        config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=Preview),
+    )
+    return resp.parsed

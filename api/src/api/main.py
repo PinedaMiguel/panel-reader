@@ -13,7 +13,7 @@ from pathlib import Path
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 
-from . import db, panels, pipeline, storage
+from . import db, gemini, panels, pipeline, storage
 
 app = FastAPI(title="Panel Reader API")
 pipeline.MEDIA.mkdir(exist_ok=True)
@@ -86,6 +86,7 @@ async def add_pages(
     if not existing:
         raise HTTPException(404)
     uploads = await _save_pages(comic_id, pages, len(existing["pages"]) + 1)
+    db.query("update comics set preview = null where id = $1", comic_id)  # new pages: rewrite the synopsis
     return _start(uuid.uuid4().hex[:10], lambda job: pipeline.run(job, uploads, existing["title"], rtl, audio, existing))
 
 
@@ -181,6 +182,45 @@ async def events(comic_id: str, lang: str | None = None):
             await asyncio.sleep(0.4)
 
     return StreamingResponse(stream(), media_type="text/event-stream")
+
+
+@app.get("/api/comics/{comic_id}/preview")
+def comic_preview(comic_id: str):
+    """Title page for "what to watch next": synopsis, tags, cast, length and a teaser. The text is written
+    once by Gemini from the comic's script and kept in Neon; media links are signed fresh each time."""
+    comic = db.load_comic(comic_id) if COMIC_ID.fullmatch(comic_id) else None
+    if not comic:
+        raise HTTPException(404)
+    pv = db.get_preview(comic_id)
+    if not pv:
+        pv = gemini.preview(comic).model_dump()
+        db.save_preview(comic_id, pv)
+    panels_by_id = {p["id"]: p for page in comic["pages"] for p in page["panels"]}
+    chars = {c["id"]: c for c in comic["characters"]}
+    words = sum(len((p.get("narration") or "").split()) + sum(len(l["text"].split()) for l in p["lines"]) for p in panels_by_id.values())
+    teaser = [panels_by_id[i] for i in pv["teaser_panels"] if i in panels_by_id] or list(panels_by_id.values())[:3]
+    line = None
+    tl = pv.get("teaser_line")
+    if tl and tl["panel_id"] in panels_by_id and tl["line_index"] < len(panels_by_id[tl["panel_id"]]["lines"]):
+        l = panels_by_id[tl["panel_id"]]["lines"][tl["line_index"]]
+        line = {"text": l["text"], "audio": l.get("audio"), "speaker": chars.get(l.get("speaker"), {}).get("name")}
+    return {
+        "id": comic_id,
+        "title": comic["title"],
+        "synopsis": pv["synopsis"],
+        "genres": pv["genres"],
+        "moods": pv["moods"],
+        "characters": [
+            {"name": chars[i].get("name") or i.replace("_", " ").title(), "description": chars[i].get("description", "")}
+            for i in pv["main_characters"] if i in chars
+        ],
+        "pages": len(comic["pages"]),
+        "panels": len(panels_by_id),
+        "minutes": max(1, round(words / 150 + len(panels_by_id) * 3 / 60)),  # ~150 wpm + page turns
+        "teaser": [{"image": p["image"]} for p in teaser],
+        "teaserLine": line,
+        "cover": comic["pages"][0]["panels"][0]["image"] if comic["pages"] else None,
+    }
 
 
 @app.get("/api/comics/{comic_id}")
