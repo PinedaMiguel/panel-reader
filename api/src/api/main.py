@@ -132,6 +132,22 @@ def create_translation(comic_id: str, lang: str = Form(...), audio: bool = Form(
     return {"id": comic_id, "lang": lang}
 
 
+@app.post("/api/comics/{comic_id}/narration")
+def create_narration(comic_id: str, lang: str | None = Form(None)):
+    """Record the audiobook narrator with ElevenLabs, only when a reader asks for it (costs credits)."""
+    if not COMIC_ID.fullmatch(comic_id) or not db.query("select 1 from comics where id = $1", comic_id):
+        raise HTTPException(404)
+    if lang in (None, "", "original"):
+        lang = None
+    elif lang not in LANGUAGES:
+        raise HTTPException(404)
+    key = f"{comic_id}:narration:{lang or 'original'}"
+    if key not in jobs or jobs[key].stage in ("done", "error"):
+        jobs[key] = pipeline.Job(key)
+        threading.Thread(target=pipeline.narrate_comic, args=(jobs[key], comic_id, lang), daemon=True).start()
+    return {"job": key}
+
+
 @app.get("/api/languages")
 def languages():
     return LANGUAGES

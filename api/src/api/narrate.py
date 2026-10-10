@@ -57,8 +57,10 @@ def cast(comic: dict) -> None:
         print(f"  cast: {c['id']} -> {POOL.get(voice, voice)}")
 
 
-def render(comic: dict, comic_dir: Path, url_prefix: str, progress=None) -> None:
-    """progress(done, total, panel_id, kind) is called after each clip (kind: narration/line/sfx)."""
+def render(comic: dict, comic_dir: Path, url_prefix: str, progress=None,
+           narration: bool = True, lines: bool = True, sfx: bool = True) -> None:
+    """Record missing clips. progress(done, total, panel_id, kind) is called after each clip
+    (kind: narration/line/sfx). Uploads record lines + sfx; narration is recorded only on request."""
     out = comic_dir / "audio"
     out.mkdir(exist_ok=True)
     voices = {c["id"]: c["voiceId"] for c in comic["characters"]}
@@ -68,14 +70,14 @@ def render(comic: dict, comic_dir: Path, url_prefix: str, progress=None) -> None
     jobs = []  # (panel id, kind, target dict, key, callable)
     for panel in (p for page in comic["pages"] for p in page["panels"]):
         pid = panel["id"]
-        if panel.get("narration") and not panel.get("narrationAudio"):
+        if narration and panel.get("narration") and not panel.get("narrationAudio"):
             jobs.append((pid, "narration", panel, "narrationAudio",
                          lambda t=panel["narration"]: eleven.tts(t, NARRATOR, out)))
-        for line in (l for l in panel.get("lines", []) if not l.get("audio")):
+        for line in (l for l in panel.get("lines", []) if lines and not l.get("audio")):
             voice = voices.get(line.get("speaker"), NEUTRAL)
             text = line.get("tagged") or line["text"]
             jobs.append((pid, "line", line, "audio", lambda t=text, v=voice: _tts_or_neutral(t, v, out)))
-        for fx in (f for f in panel.get("sfx", []) if not f.get("audio")):
+        for fx in (f for f in panel.get("sfx", []) if sfx and not f.get("audio")):
             jobs.append((pid, "sfx", fx, "audio", lambda p=fx["prompt"]: eleven.sfx(p, out)))
 
     done = 0

@@ -11,6 +11,8 @@ type Props = {
   startAt?: string // panel id to open on, with no entrance animation (hand-off from the processing view)
   pageSizes?: Record<string, { w: number; h: number }> // known page sizes, so the camera draws on frame one
   onReady?: () => void // first frame painted (the processing view waits for this before fading)
+  comicId?: string | null // set for comics stored in Neon (they can get an ElevenLabs narrator on request)
+  onRefresh?: () => void // reload the comic (after the narrator has been recorded)
 }
 
 // Okabe-Ito: distinguishable with every common colour-vision deficiency. Names are always shown too.
@@ -48,7 +50,9 @@ function usePageSizes(pages: Page[], known: Record<string, { w: number; h: numbe
 
 // One panel per screen. Scroll snapping does the paging; an IntersectionObserver tracks the active
 // panel (-1 = the title card). Behind the panels, the whole page glides like a camera to the active one.
-export default function Reader({ comic, languages, translating, startAt, pageSizes: knownSizes, onReady }: Props) {
+export default function Reader({
+  comic, languages, translating, startAt, pageSizes: knownSizes, onReady, comicId, onRefresh,
+}: Props) {
   const entries = useMemo(
     () => comic.pages.flatMap((page) => page.panels.map((panel) => ({ panel, page }))),
     [comic],
@@ -61,7 +65,61 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
   const refs = useRef<(HTMLElement | null)[]>([])
   const cover = useRef<HTMLElement | null>(null)
   const [playing, setPlaying] = useState(false)
-  const [audiobook, setAudiobook] = useState(true)
+  // The narrator is recorded only on request, so audiobook mode starts on only when it already exists.
+  const narratorMissing = comic.pages.some((p) => p.panels.some((x) => x.narration && !x.narrationAudio))
+  const narratorKey = `panel-reader-narrator:${comic.id}:${comic.lang ?? 'original'}`
+  const [audiobook, setAudiobook] = useState(!narratorMissing)
+  const [narratorPrompt, setNarratorPrompt] = useState(false)
+  const [recording, setRecording] = useState<string | null>(null)
+  const narratorChosen = () => {
+    try {
+      return !!localStorage.getItem(narratorKey)
+    } catch {
+      return false
+    }
+  }
+  const toggleAudiobook = () => {
+    setAudiobook((on) => {
+      if (!on && narratorMissing && !narratorChosen()) setNarratorPrompt(true)
+      return !on
+    })
+  }
+  // Switching to a language whose narrator isn't recorded yet, with audiobook on: ask again.
+  useEffect(() => {
+    if (audiobook && narratorMissing && !narratorChosen() && !recording) setNarratorPrompt(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [comic])
+
+  const chooseNarrator = async (kind: 'browser' | 'elevenlabs') => {
+    setNarratorPrompt(false)
+    try {
+      localStorage.setItem(narratorKey, kind)
+    } catch {
+      // private mode: the prompt may come back next visit
+    }
+    if (kind !== 'elevenlabs' || !comicId) return
+    // Record in the background; the browser voice reads the narration until it's ready.
+    setRecording('Recording the narrator…')
+    const body = new FormData()
+    if (comic.lang && comic.lang !== 'original') body.append('lang', comic.lang)
+    const r = await fetch(`/api/comics/${comicId}/narration`, { method: 'POST', body })
+    if (!r.ok) return setRecording('Could not start the narrator recording.')
+    const { job } = await r.json()
+    const es = new EventSource(`/api/jobs/${encodeURIComponent(job)}/events`)
+    es.onmessage = (m) => {
+      const ev = JSON.parse(m.data)
+      if (ev.type === 'progress') setRecording(`Recording the narrator… ${ev.done}/${ev.total}`)
+      if (ev.type === 'done') {
+        es.close()
+        setRecording(null)
+        onRefresh?.()
+      }
+      if (ev.type === 'error') {
+        es.close()
+        setRecording(`Narrator recording failed: ${ev.message}`)
+      }
+    }
+  }
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settings] = useSettings()
   const vp = useViewport()
@@ -151,7 +209,7 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
         return
       }
       if (e.key === 'a' || e.key === 'A') {
-        setAudiobook((v) => !v)
+        toggleAudiobook()
         return
       }
       // Space activates focused buttons; don't also page.
@@ -263,7 +321,7 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
         <button
           type="button"
           aria-pressed={audiobook}
-          onClick={() => setAudiobook((v) => !v)}
+          onClick={toggleAudiobook}
           title={audiobook ? 'Narrator describes each scene' : 'Dialogue and sound effects only'}
         >
           Audiobook {audiobook ? 'on' : 'off'} <kbd>A</kbd>
@@ -279,6 +337,16 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
         languages={languages}
         translating={translating}
       />
+      <NarratorPrompt
+        open={narratorPrompt}
+        canRecord={!!comicId && narratorMissing}
+        onChoose={chooseNarrator}
+      />
+      {recording && (
+        <p className="toast toast-low" role="status">
+          {recording}
+        </p>
+      )}
       {translating && !settingsOpen && (
         <p className="toast" role="status">
           {translating}
@@ -310,6 +378,38 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
         )}
       </div>
     </main>
+  )
+}
+
+// Asked when audiobook mode needs a narrator that hasn't been recorded: the free browser voice is the
+// main choice; recording an ElevenLabs narrator (costs credits) is offered only as small print.
+function NarratorPrompt({ open, canRecord, onChoose }: {
+  open: boolean
+  canRecord: boolean
+  onChoose: (kind: 'browser' | 'elevenlabs') => void
+}) {
+  const ref = useRef<HTMLDialogElement>(null)
+  useEffect(() => {
+    const d = ref.current
+    if (!d) return
+    if (open && !d.open) d.showModal()
+    if (!open && d.open) d.close()
+  }, [open])
+  return (
+    <dialog ref={ref} className="settings narrator" onCancel={() => onChoose('browser')} aria-labelledby="narrator-title">
+      <h2 id="narrator-title">Narrator voice</h2>
+      <p>This comic's narrator hasn't been recorded yet. The browser can read the scene descriptions right away.</p>
+      <form method="dialog">
+        <button type="submit" onClick={() => onChoose('browser')}>
+          Use browser voice
+        </button>
+      </form>
+      {canRecord && (
+        <button type="button" className="small-print" onClick={() => onChoose('elevenlabs')}>
+          or record a natural narrator with ElevenLabs (uses credits)
+        </button>
+      )}
+    </dialog>
   )
 }
 
