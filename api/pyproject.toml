@@ -6,25 +6,34 @@ requires-python = ">=3.12"
 dependencies = [
     "boto3>=1.43.111",
     "edge-tts>=7.2.8",
-    "einops>=0.8.2",
     "fastapi>=0.143.0",
     "google-genai>=2.29.0",
     "httpx>=0.28.1",
+    "pillow>=12.3.0",
+    "python-dotenv>=1.2.4",
+    "python-multipart>=0.0.32",
+    "uvicorn>=0.54.0",
+]
+
+# Panel detection (Magi v2): only needed where new comics are added. Installed by default; a reading-only
+# server skips it (uv sync --no-group magi) and runs with MAGI=off.
+[dependency-groups]
+magi = [
+    "einops>=0.8.2",
     "matplotlib>=3.11.2",
     "networkx>=3.7",
     "numpy>=2.5.3",
-    "pillow>=12.3.0",
     "pulp>=4.0.0",
-    "python-dotenv>=1.2.4",
-    "python-multipart>=0.0.32",
     "scipy>=1.18.1",
     "shapely>=2.2.0",
     "timm>=1.0.30",
     "torch>=2.14.1",
     "torchvision>=0.29.1",
     "transformers>=4.44,<4.50",
-    "uvicorn>=0.54.0",
 ]
+
+[tool.uv]
+default-groups = ["magi"]
 
 [build-system]
 requires = ["uv_build>=0.13.0,<0.14.0"]

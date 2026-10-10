@@ -207,20 +207,26 @@ wheels = [
 name = "api"
 version = "0.1.0"
 source = { editable = "." }
+default-groups = ["magi"]
 dependencies = [
     { name = "boto3" },
     { name = "edge-tts" },
-    { name = "einops" },
     { name = "fastapi" },
     { name = "google-genai" },
     { name = "httpx" },
+    { name = "pillow" },
+    { name = "python-dotenv" },
+    { name = "python-multipart" },
+    { name = "uvicorn" },
+]
+
+[package.dev-dependencies]
+magi = [
+    { name = "einops" },
     { name = "matplotlib" },
     { name = "networkx" },
     { name = "numpy" },
-    { name = "pillow" },
     { name = "pulp" },
-    { name = "python-dotenv" },
-    { name = "python-multipart" },
     { name = "scipy" },
     { name = "shapely" },
     { name = "timm" },
@@ -229,24 +235,28 @@ dependencies = [
     { name = "torchvision", version = "0.29.1", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'linux'" },
     { name = "torchvision", version = "0.29.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'linux'" },
     { name = "transformers" },
-    { name = "uvicorn" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "boto3", specifier = ">=1.43.111" },
     { name = "edge-tts", specifier = ">=7.2.8" },
-    { name = "einops", specifier = ">=0.8.2" },
     { name = "fastapi", specifier = ">=0.143.0" },
     { name = "google-genai", specifier = ">=2.29.0" },
     { name = "httpx", specifier = ">=0.28.1" },
+    { name = "pillow", specifier = ">=12.3.0" },
+    { name = "python-dotenv", specifier = ">=1.2.4" },
+    { name = "python-multipart", specifier = ">=0.0.32" },
+    { name = "uvicorn", specifier = ">=0.54.0" },
+]
+
+[package.metadata.requires-dev]
+magi = [
+    { name = "einops", specifier = ">=0.8.2" },
     { name = "matplotlib", specifier = ">=3.11.2" },
     { name = "networkx", specifier = ">=3.7" },
     { name = "numpy", specifier = ">=2.5.3" },
-    { name = "pillow", specifier = ">=12.3.0" },
     { name = "pulp", specifier = ">=4.0.0" },
-    { name = "python-dotenv", specifier = ">=1.2.4" },
-    { name = "python-multipart", specifier = ">=0.0.32" },
     { name = "scipy", specifier = ">=1.18.1" },
     { name = "shapely", specifier = ">=2.2.0" },
     { name = "timm", specifier = ">=1.0.30" },
@@ -255,7 +265,6 @@ requires-dist = [
     { name = "torchvision", marker = "sys_platform != 'linux'", specifier = ">=0.29.1" },
     { name = "torchvision", marker = "sys_platform == 'linux'", specifier = ">=0.29.1", index = "https://download.pytorch.org/whl/cpu" },
     { name = "transformers", specifier = ">=4.44,<4.50" },
-    { name = "uvicorn", specifier = ">=0.54.0" },
 ]
 
 [[package]]

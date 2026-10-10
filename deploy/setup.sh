@@ -7,7 +7,8 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update -q
 apt-get install -yq caddy rsync
 
-# Swap: the panel model + PyTorch peak around 4 GB; swap keeps a spike from killing the job.
+# Swap: headroom for small plans. (The server runs without the panel model, MAGI=off: new comics are
+# added on a machine with Magi installed, so this host needs no PyTorch and little RAM.)
 if [ ! -f /swapfile ]; then
   fallocate -l 4G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
   echo '/swapfile none swap sw 0 0' >> /etc/fstab
@@ -35,7 +36,8 @@ WorkingDirectory=/srv/panel-reader/api
 EnvironmentFile=/srv/panel-reader/.env
 Environment=HF_HOME=/srv/panel-reader/hf-cache
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/home/app/.local/bin/uv run --frozen uvicorn api.main:app --host 127.0.0.1 --port 8000
+Environment=MAGI=off
+ExecStart=/home/app/.local/bin/uv run --frozen --no-group magi uvicorn api.main:app --host 127.0.0.1 --port 8000
 Restart=always
 RestartSec=3
 

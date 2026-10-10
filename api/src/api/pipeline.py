@@ -5,6 +5,7 @@ script goes to Neon Postgres. File fields in the script hold bucket keys ("<comi
 """
 
 import json
+import os
 import threading
 import traceback
 from copy import deepcopy
@@ -14,8 +15,20 @@ from pathlib import Path
 
 from PIL import Image
 
-from . import db, edge, eleven, gemini, narrate, panels, storage
+from . import db, edge, eleven, gemini, narrate, storage
 from .voices import NEUTRAL, POOL
+
+
+def magi():
+    """The panel model (Magi v2), imported only when a page has never been seen before. A reading-only server
+    runs without it (MAGI=off, installed with --no-group magi); everything except adding new pages works."""
+    if os.environ.get("MAGI", "on") == "off":
+        raise RuntimeError("Panel detection is off on this server (MAGI=off). Add new comics where Magi is installed.")
+    try:
+        from . import panels
+    except ImportError as e:
+        raise RuntimeError("Panel detection isn't installed here (uv sync --group magi). Add new comics where it is.") from e
+    return panels
 
 MEDIA = Path(__file__).parents[3] / "media"
 
@@ -204,7 +217,9 @@ def _run(job: Job, uploads: list[Upload], title: str, rtl: bool, audio: bool, ta
                         queue_audio(p)
                 continue
 
-            # Cast list (Gemini) and panel detection (Magi) at the same time.
+            # Cast list (Gemini) and panel detection (Magi) at the same time. Magi first: on a server
+            # without it this fails before any paid call.
+            panels = magi()
             job.update("detecting panels", i, len(uploads))
             job.emit("page", page=page_entry_id(pi), upload=i, cached=False)
             with lock:

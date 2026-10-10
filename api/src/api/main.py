@@ -15,7 +15,7 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 
-from . import db, gemini, panels, pipeline, storage
+from . import db, gemini, pipeline, storage
 
 app = FastAPI(title="Panel Reader API")
 pipeline.MEDIA.mkdir(exist_ok=True)
@@ -40,8 +40,12 @@ def admin(x_admin_token: str = Header("")) -> None:
 @app.on_event("startup")
 def startup() -> None:
     db.migrate()
-    # Loading Magi takes a while; do it in the background so the first upload is faster.
-    threading.Thread(target=panels.model, daemon=True).start()
+    # Loading Magi takes a while; do it in the background so the first upload is faster. A reading-only
+    # server (MAGI=off, or Magi not installed) skips it and never needs the model.
+    try:
+        threading.Thread(target=pipeline.magi().model, daemon=True).start()
+    except RuntimeError as e:
+        print(f"Magi not loaded: {e}")
 
 
 async def _save_pages(folder: str, pages: list[UploadFile], first_idx: int) -> list[pipeline.Upload]:

@@ -23,7 +23,7 @@ echo "→ installing and restarting"
 $SSH bash -s <<REMOTE
 set -euo pipefail
 chown -R app:app /srv/panel-reader
-sudo -u app bash -lc 'cd /srv/panel-reader/api && uv sync --frozen --no-dev -q'
+sudo -u app bash -lc 'cd /srv/panel-reader/api && uv sync --frozen --no-dev --no-group magi -q'  # reading-only: no Magi
 echo 'SITE_HOST=$HOST' > /etc/default/caddy
 mkdir -p /etc/systemd/system/caddy.service.d
 printf '[Service]\nEnvironmentFile=/etc/default/caddy\n' > /etc/systemd/system/caddy.service.d/env.conf

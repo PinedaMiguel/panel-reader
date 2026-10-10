@@ -111,6 +111,13 @@ deploy/deploy.sh <server-ip> [domain]              # build, upload, install, res
 
 Without a domain, the site is served at `https://<ip-with-dashes>.sslip.io`, with HTTPS from Let's Encrypt via Caddy.
 
+The server runs **without Magi v2** (`MAGI=off`, installed with `uv sync --no-group magi`), so it needs no PyTorch and about 1–2 GB of RAM. Everything viewers do (browsing, previews, reading, translations) works without it. New comics are added on a machine that has Magi installed (the default for `uv sync` locally); a never-seen page sent to a server without Magi fails before any paid model call, while re-uploading already-processed pages still replays them from cache. To host anywhere else, run the API the same way:
+
+```
+uv sync --frozen --no-group magi
+MAGI=off uv run --frozen --no-group magi uvicorn api.main:app --port 8000
+```
+
 ## Keyboard shortcuts
 
 | Key | Action |
