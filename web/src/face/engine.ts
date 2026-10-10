@@ -181,7 +181,8 @@ const WINDOW_MS = 1200 // nod/shake window
 const ARM_MS = 400 // centred and still this long re-arms
 const STILL_DEG = 4
 const TURN_DEG = 16
-const AWAY_DEG = 38 // turned further than this = looking at someone else, not a gesture
+const AWAY_DEG = 38 // turned further than this...
+const AWAY_MS = 2500 // ...for this long (or the face lost this long) = looking at someone else, not a gesture
 const HOLD_MS = 350
 const RESUME_MS = 1000 // facing the screen this long after looking away resumes control
 const TALK_MS = 1000
@@ -193,6 +194,7 @@ let manual = false
 let away: 'away' | 'others' | null = null
 let backSince = 0
 let lostSince = 0
+let farSince = 0
 let talkingUntil = 0
 let state: ControlState = 'wait'
 let lastT = 0 // time of the latest frame, so pauses line up with the frames they apply to
@@ -238,7 +240,8 @@ function detectGestures(f: FaceFrame) {
   lastT = f.t
   if (!f.found) {
     lostSince ||= f.t
-    if (f.t - lostSince > 500) away = 'away'
+    if (f.t - lostSince > AWAY_MS) away = 'away' // a big turn can lose the face for a moment: that's not away
+    if (turnSince) wentFar = true // lost mid-turn: it was a big one
     backSince = 0
     setState(manual ? 'paused' : away ?? state)
     return
@@ -253,9 +256,11 @@ function detectGestures(f: FaceFrame) {
   const centred = Math.abs(off) < TURN_DEG / 2
 
   // Looking away (turned past AWAY_DEG), or someone else in view: pause until you face the screen again.
+  // Only a sustained big turn is looking away; a quick one, however far, is a gesture.
+  farSince = Math.abs(off) > AWAY_DEG ? farSince || f.t : 0
   if (f.faces > 1) away = 'others'
-  else if (Math.abs(off) > AWAY_DEG) away = 'away'
-  else if (away) {
+  else if (farSince && f.t - farSince > AWAY_MS) away = 'away'
+  else if (away && !farSince) {
     backSince = centred && still ? backSince || f.t : 0
     if (backSince && f.t - backSince > RESUME_MS) {
       away = null
@@ -305,20 +310,29 @@ function learnRest(f: FaceFrame) {
   return f.yaw - restYaw
 }
 
-// Turn = head turned between TURN_DEG and AWAY_DEG, held briefly. One turn, one step: to move again,
-// come back to the centre (which re-arms) and turn again.
+// Turn = head turned past TURN_DEG and held briefly. One turn, one step: to move again, come back to the
+// centre (which re-arms) and turn again. A big turn (past AWAY_DEG, where people naturally go when asked to
+// turn, and where the camera can briefly lose the face) counts when the head comes back, as long as the
+// whole turn was quick; a long one is looking away, not a gesture.
 let turnSince = 0
 let turnDone = false
+let wentFar = false
+let turnDir = 0
 function detectTurn(f: FaceFrame, off: number) {
-  if (Math.abs(off) < TURN_DEG || Math.abs(off) > AWAY_DEG) {
+  const a = Math.abs(off)
+  if (a < TURN_DEG) {
+    if (turnSince && !turnDone && wentFar && f.t - turnSince < AWAY_MS) fire(turnDir > 0 ? 'right' : 'left', f)
     turnSince = 0
     turnDone = false
+    wentFar = false
     return
   }
   turnSince ||= f.t
-  if (turnDone || f.t - turnSince < HOLD_MS) return
+  turnDir = off > 0 ? 1 : -1 // confirmed by the user on a real webcam: yaw + = turned right
+  if (a > AWAY_DEG) wentFar = true
+  if (turnDone || wentFar || f.t - turnSince < HOLD_MS) return
   turnDone = true
-  fire(off > 0 ? 'right' : 'left', f) // confirmed by the user on a real webcam: yaw + = turned right
+  fire(turnDir > 0 ? 'right' : 'left', f)
 }
 
 // Nod = up-down swing of the head (pitch), shake = left-right (yaw), within WINDOW_MS, the other axis
