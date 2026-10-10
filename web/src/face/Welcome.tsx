@@ -43,7 +43,7 @@ export default function Welcome() {
   }
 
   // The guide also says what to do, in a word or two, and "Nice!" when you do it (pre-made ElevenLabs
-  // clips in /setup-voice, a voice no comic character uses). If the browser blocks sound before any interaction, it retries once the camera is
+  // clips in /setup-voice: Matilda, a calm adult voice that is rare in the comics). If the browser blocks sound before any interaction, it retries once the camera is
   // running or on the first click or key press.
   const [voice, setVoice] = useState(true)
   const speaker = useRef<HTMLAudioElement | null>(null)
