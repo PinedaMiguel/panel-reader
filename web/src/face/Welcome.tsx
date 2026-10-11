@@ -8,7 +8,7 @@ import SwitchLayer from './SwitchLayer'
 // next to a small animation of what that gesture does in the app, so it reads without reading. Doing the
 // gesture moves on. "Use mouse & keyboard instead", Back and Skip are always there.
 
-type StepId = 'hello' | Gesture | 'smile' | 'ready'
+type StepId = 'hello' | Gesture | 'smile'
 type Step = { id: StepId; act: GuideAction; title: string; line: string }
 const STEPS: Step[] = [
   { id: 'hello', act: 'idle', title: 'Look at the camera', line: 'Look at the camera so it can see your face. Nothing is recorded.' },
@@ -17,13 +17,12 @@ const STEPS: Step[] = [
   { id: 'eyes', act: 'eyes', title: 'Close your eyes', line: 'Close your eyes for a second to turn the narrator on or off while a comic plays.' },
   { id: 'up', act: 'up', title: 'Look up = pause', line: 'Look up at the sky and hold it there until the bar fills. Looking up pauses a comic while it plays.' },
   { id: 'smile', act: 'smile', title: 'Just enjoy it', line: 'Your smiles fill a heart meter that picks what to read next. Nothing to do here.' },
-  { id: 'ready', act: 'right', title: 'You’re set', line: 'Turn your head right to start reading.' },
 ]
 const GESTURE_NAME: Record<Gesture, string> = { right: 'a right turn', left: 'a left turn', eyes: 'closing your eyes', up: 'looking up' }
 const SEEN_MS = 1500 // face steadily in view before the first gesture
 const DONE_MS = 1100 // success moment before the next step
 // Demo animation per step: yes picks a show (it opens), no skips it (it closes).
-const DEMO: Partial<Record<StepId, string>> = { right: 'yes', left: 'no', ready: 'yes' }
+const DEMO: Partial<Record<StepId, string>> = { right: 'yes', left: 'no' }
 const isGesture = (id: StepId): id is Gesture => id in GESTURE_NAME
 // Calibration: the turn and look-up steps ask you to hold the position, and how far you hold it sets your
 // thresholds (calibrate in the engine). Holding starts counting from a low bar, so small movers can do it.
@@ -50,6 +49,7 @@ export default function Welcome() {
     setMiss(null)
     setI(Math.max(0, Math.min(STEPS.length - 1, to)))
   }
+  const next = () => (i === STEPS.length - 1 ? finish(true) : go(i + 1)) // the last step (the heart) ends the setup
 
   // The guide also says what to do, in a word or two, and "Nice!" when you do it (pre-made ElevenLabs
   // clips in /setup-voice: Matilda, a calm adult voice that is rare in the comics). If the browser blocks sound before any interaction, it retries once the camera is
@@ -193,7 +193,7 @@ export default function Welcome() {
 
   useEffect(() => {
     if (!success) return
-    const t = setTimeout(() => go(i + 1), DONE_MS)
+    const t = setTimeout(next, DONE_MS)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [success])
@@ -201,7 +201,7 @@ export default function Welcome() {
   // The heart meter is passive (no one should have to smile on cue), so its step just plays twice.
   useEffect(() => {
     if (step.id !== 'smile') return
-    const t = setTimeout(() => go(i + 1), CYCLE_S * 2000)
+    const t = setTimeout(next, CYCLE_S * 2000)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step.id])
@@ -214,7 +214,7 @@ export default function Welcome() {
         role="dialog"
         aria-modal="true"
         aria-labelledby="welcome-title"
-        data-face-own={step.id !== 'ready' || undefined}
+        data-face-own
         style={{ '--cycle': `${CYCLE_S}s` } as CSSProperties}
       >
         <header className="welcome-top">
@@ -269,22 +269,16 @@ export default function Welcome() {
             </span>
           )}
           {miss && <p className="welcome-miss">{miss}</p>}
-          {step.id === 'ready' ? (
-            <button type="button" className="btn btn-accent btn-lg welcome-start" autoFocus onClick={() => finish(true)}>
-              <Icon name="play" /> Start reading
-            </button>
-          ) : (
-            <div className="welcome-nav">
-              {i > 0 && (
-                <button type="button" className="btn-link" onClick={() => go(i - 1)}>
-                  Back
-                </button>
-              )}
-              <button type="button" className="btn-link" onClick={() => go(i + 1)}>
-                Skip
+          <div className="welcome-nav">
+            {i > 0 && (
+              <button type="button" className="btn-link" onClick={() => go(i - 1)}>
+                Back
               </button>
-            </div>
-          )}
+            )}
+            <button type="button" className="btn-link" onClick={next}>
+              Skip
+            </button>
+          </div>
         </div>
 
       </div>
@@ -355,7 +349,7 @@ function Demo({ id, covers }: { id: StepId; covers: string[] }) {
           <Icon name={id} />
         </span>
       )}
-      {(id === 'right' || id === 'left' || id === 'ready') && (
+      {(id === 'right' || id === 'left') && (
         <div className="demo-sheet">
           {covers[1] && <img src={covers[1]} alt="" />}
           <span className="demo-play">
