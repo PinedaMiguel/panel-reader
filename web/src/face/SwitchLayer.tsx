@@ -6,7 +6,7 @@ import { controlState, onControlState, onGesture, pauseGestures, startFace, stop
 // go to the next and previous panel. The highlight is real keyboard focus, so screen readers announce it and Tab/mouse still work.
 
 const SEL = 'button, a[href], [role="button"], input[type="checkbox"], summary, [data-switch-target]'
-const LABEL: Record<Gesture, string> = { right: 'Yes →', left: '← No', eyes: 'Eyes closed: narrator' }
+const LABEL: Record<Gesture, string> = { right: 'Yes →', left: '← No', eyes: 'Eyes closed: narrator', up: 'Looked up: pause' }
 
 // Controls in reading order. Inside an open dialog only the dialog's controls count, like a keyboard.
 function targets(): HTMLElement[] {
@@ -64,6 +64,7 @@ export default function SwitchLayer() {
       const dialog = [...document.querySelectorAll('dialog')].find((d) => d.open)
       const inReader = !!document.querySelector('.reader[data-playing="true"]') && !dialog
       if (g === 'eyes') return inReader && key('a') // the narrator toggle, while reading
+      if (g === 'up') return inReader && key('p') // look at the sky: pause
       if (inReader) return key(g === 'right' ? 'ArrowRight' : 'ArrowLeft') // while reading: next / previous panel
       if (g === 'right') {
         // Yes: press what's highlighted (something always is, see below).

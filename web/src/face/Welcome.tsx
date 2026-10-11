@@ -18,7 +18,7 @@ const STEPS: Step[] = [
   { id: 'smile', act: 'smile', title: 'Just enjoy it', line: 'Your smiles fill a heart meter that picks what to read next. Nothing to do here.' },
   { id: 'ready', act: 'right', title: 'You’re set', line: 'Turn your head right to start reading.' },
 ]
-const GESTURE_NAME: Record<Gesture, string> = { right: 'a right turn', left: 'a left turn', eyes: 'closing your eyes' }
+const GESTURE_NAME: Record<Gesture, string> = { right: 'a right turn', left: 'a left turn', eyes: 'closing your eyes', up: 'looking up' }
 const SEEN_MS = 1500 // face steadily in view before the first gesture
 const DONE_MS = 1100 // success moment before the next step
 // Demo animation per step: yes picks a show (it opens), no skips it (it closes).

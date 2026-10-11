@@ -21,7 +21,7 @@ export type FaceFrame = {
   browUp: number // 0..1 eyebrows raised
 }
 
-export type Gesture = 'left' | 'right' | 'eyes' // turns: the user's own right = yes, left = no; eyes: closed ~1 s
+export type Gesture = 'left' | 'right' | 'eyes' | 'up' // turns: the user's own right = yes, left = no; eyes: closed ~1 s; up: look at the sky
 
 type Listener = (f: FaceFrame) => void
 type GestureListener = (g: Gesture) => void
@@ -278,6 +278,7 @@ function detectGestures(f: FaceFrame) {
 
   detectTurn(f, off)
   detectEyes(f)
+  detectUp(f)
   detectReaction(f)
   setState(manual ? 'paused' : away ? away : !armed ? 'wait' : 'ready')
 }
@@ -355,6 +356,29 @@ function detectEyes(f: FaceFrame) {
   if (closedDone || f.t - closedSince < CLOSE_MS) return
   closedDone = true
   fire('eyes', f)
+}
+
+// Look up = head tilted up past UP_DEG from where you normally hold it, held UP_MS: pause while reading.
+// Held, so a nod (a quick up-down swing) never counts. Once per tilt. "Level" is learned slowly while the
+// head is near it, since camera height decides the resting pitch.
+const UP_DEG = 20
+const UP_MS = 500
+let restPitch: number | null = null
+let upSince = 0
+let upDone = false
+function detectUp(f: FaceFrame) {
+  if (restPitch === null || f.t - seenSince < 1500) restPitch = f.pitch
+  const off = f.pitch - restPitch
+  if (Math.abs(off) < UP_DEG / 2) restPitch += off * 0.01
+  if (off < UP_DEG) {
+    upSince = 0
+    upDone = false
+    return
+  }
+  upSince ||= f.t
+  if (upDone || f.t - upSince < UP_MS) return
+  upDone = true
+  fire('up', f)
 }
 
 // ---- Reactions (not commands) ----
