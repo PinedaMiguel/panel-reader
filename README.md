@@ -20,6 +20,15 @@ Built at **KnightHacks IX** (UCF, October 2026).
 - **Sound effects** recorded with ElevenLabs play under each panel.
 - **Audiobook mode** adds a narrator (a neural edge-tts voice in the reading language) who describes the setting, what happens, and each character's emotion and body language. It can be switched on or off at any moment: turning it off skips straight to the dialogue, and turning it on picks up from the next narration.
 
+### Hands-free (face control)
+A guided setup teaches each gesture with an animated 3D guide, then the whole site works without touching anything. Face tracking runs on-device (MediaPipe Face Landmarker); no video leaves the browser.
+- **Turn right** = yes: press what's highlighted (Play, Watch). While a comic plays, the next panel.
+- **Turn left** = no: close or go back. While a comic plays, the previous panel.
+- **Close your eyes** for about a second: audiobook narrator on/off while a comic plays.
+- **Look up** at the sky for a moment: pause the comic while it plays.
+- **Just enjoy it:** smiles and nods fill a heart meter (shakes drain it) that picks what to read next.
+- Control pauses by itself when you look away or someone else comes into view; **H** pauses it by hand.
+
 ### Accessibility (all opt-in)
 - **Fonts:** OpenDyslexic for dyslexia, Atkinson Hyperlegible for low vision, and adjustable caption size (80–200%).
 - **Colour-blind correction** for protanopia, deuteranopia and tritanopia, applied to the artwork itself (daltonization), plus high-contrast and grayscale modes.
@@ -130,6 +139,7 @@ MAGI=off uv run --frozen --no-group magi uvicorn api.main:app --port 8000
 | P | Play / Pause |
 | A | Audiobook narration on/off |
 | S | Reading settings |
+| H | Pause / resume hands-free control |
 
 ## Repository layout
 
