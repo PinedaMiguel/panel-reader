@@ -30,7 +30,7 @@ A guided setup teaches each gesture with an animated 3D guide and calibrates it:
 - **Turn right** = yes: press what's highlighted (Play, Watch). While a comic plays, the next panel.
 - **Turn left** = no: close or go back. While a comic plays, the previous panel.
 - **Close your eyes** for about a second: audiobook narrator on/off while a comic plays.
-- **Look up** at the sky for a moment: pause the comic while it plays.
+- **Look up** at the sky for a moment: pause the comic while it plays, or hold the lineup's preview (look up again to resume).
 - **Just enjoy it:** smiles and nods fill a heart meter (shakes drain it) that picks what to read next.
 - Control pauses by itself when you look away or someone else comes into view; **H** pauses it by hand.
 

@@ -169,7 +169,8 @@ function toFrame(r: ReturnType<FaceLandmarker['detectForVideo']>, t: number): Fa
     jaw: b('jawOpen'),
     tongue: b('tongueOut'),
     browUp: (b('browInnerUp') + b('browOuterUpLeft') + b('browOuterUpRight')) / 3,
-    faces: r.faceLandmarks?.length ?? 0,
+    // A tilted head can be detected twice: only a face whose nose is clearly apart from the first counts.
+    faces: 1 + (r.faceLandmarks?.slice(1).filter((o) => Math.hypot(o[1].x - lm[1].x, o[1].y - lm[1].y) > 0.15).length ?? 0),
   }
 }
 
@@ -189,6 +190,7 @@ const AWAY_DEG = 38 // turned further than this...
 const AWAY_MS = 2500 // ...for this long (or the face lost this long) = looking at someone else, not a gesture
 const HOLD_MS = 350
 const RESUME_MS = 1000 // facing the screen this long after looking away resumes control
+const OTHERS_MS = 800 // a second face must stay this long to pause (a one-frame misdetection doesn't)
 const POSTURE_MS = 12000
 const history: FaceFrame[] = []
 let armed = false
@@ -198,6 +200,7 @@ let away: 'away' | 'others' | null = null
 let backSince = 0
 let lostSince = 0
 let farSince = 0
+let othersSince = 0
 let state: ControlState = 'wait'
 let lastOff = 0 // latest head turn from rest, degrees (+ = right)
 // Per-user thresholds, learned in the setup from how far you hold each turn (see calibrate).
@@ -276,9 +279,10 @@ function detectGestures(f: FaceFrame) {
   // Looking away (turned past AWAY_DEG), or someone else in view: pause until you face the screen again.
   // Only a sustained big turn is looking away; a quick one, however far, is a gesture.
   farSince = Math.abs(off) > AWAY_DEG ? farSince || f.t : 0
-  if (f.faces > 1) away = 'others'
+  othersSince = f.faces > 1 ? othersSince || f.t : 0
+  if (othersSince && f.t - othersSince > OTHERS_MS) away = 'others'
   else if (farSince && f.t - farSince > AWAY_MS) away = 'away'
-  else if (away && !farSince) {
+  else if (away && !farSince && !othersSince) {
     backSince = centred && still ? backSince || f.t : 0
     if (backSince && f.t - backSince > RESUME_MS) {
       away = null

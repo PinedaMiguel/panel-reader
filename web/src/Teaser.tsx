@@ -13,17 +13,33 @@ const DUCKED = 0.1
 export const SHOT_MS = 2800
 export const teaserMs = (d: TeaserData) => Math.max(3, d.teaser.length) * SHOT_MS
 
-export default function Teaser({ data, waiting }: { data: TeaserData | null; waiting?: string }) {
+export default function Teaser({ data, waiting, paused = false }: { data: TeaserData | null; waiting?: string; paused?: boolean }) {
   const audio = useRef<HTMLAudioElement | null>(null)
   const music = useRef<HTMLAudioElement | null>(null)
   const [shot, setShot] = useState(0)
   const [muted, setMuted] = useState(false)
   const [speaking, setSpeaking] = useState(false)
+  const pausedRef = useRef(paused)
+  pausedRef.current = paused
+
+  useEffect(() => setShot(0), [data])
+  useEffect(() => {
+    if (!data?.teaser.length || paused) return
+    const t = setInterval(() => setShot((s) => (s + 1) % data.teaser.length), SHOT_MS)
+    return () => clearInterval(t)
+  }, [data, paused])
+
+  // Paused (looking up in the lineup): hold the music and the line where they are.
+  useEffect(() => {
+    for (const a of [audio.current, music.current]) {
+      if (!a) continue
+      if (paused) a.pause()
+      else if (!a.ended) a.play().catch(() => {})
+    }
+  }, [paused])
 
   useEffect(() => {
-    setShot(0)
     if (!data?.teaser.length) return
-    const t = setInterval(() => setShot((s) => (s + 1) % data.teaser.length), SHOT_MS)
     const line = data.teaserLine?.audio
     let a: HTMLAudioElement | null = null
     const bed = data.music ? new Audio(data.music) : null
@@ -31,7 +47,7 @@ export default function Teaser({ data, waiting }: { data: TeaserData | null; wai
       bed.volume = MUSIC
       bed.muted = muted
       music.current = bed
-      bed.play().catch(() => {})
+      if (!pausedRef.current) bed.play().catch(() => {})
     }
     const cue = line
       ? setTimeout(() => {
@@ -39,6 +55,7 @@ export default function Teaser({ data, waiting }: { data: TeaserData | null; wai
           a.muted = muted
           audio.current = a
           a.onplay = () => {
+            if (pausedRef.current) return a?.pause() // its cue came while paused: wait for resume
             setSpeaking(true)
             if (bed) bed.volume = DUCKED
           }
@@ -50,7 +67,6 @@ export default function Teaser({ data, waiting }: { data: TeaserData | null; wai
         }, SHOT_MS * 0.6)
       : undefined
     return () => {
-      clearInterval(t)
       clearTimeout(cue)
       a?.pause()
       bed?.pause()

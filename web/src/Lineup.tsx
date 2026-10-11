@@ -41,6 +41,7 @@ export default function Lineup({ comics, skip = [], onOther }: { comics: LineupS
   const [i, setI] = useState(0)
   const [scores, setScores] = useState<Record<string, number>>({})
   const [left, setLeft] = useState(COUNTDOWN_S)
+  const [paused, setPaused] = useState(false) // look up (or P): hold the preview or the countdown
   const counting = i >= picks.length
   const show = picks[Math.min(i, picks.length - 1)]
   const d = data[show?.id ?? '']
@@ -60,38 +61,48 @@ export default function Lineup({ comics, skip = [], onOther }: { comics: LineupS
   const go = (to: number) => {
     if (!counting && show) setScores((s) => ({ ...s, [show.id]: Math.round(score.current) }))
     setI(Math.max(0, Math.min(picks.length, to)))
+    setPaused(false)
   }
 
   // A new preview (or the countdown) on screen: give the head a moment before gestures count.
   useEffect(() => pauseGestures(), [i])
 
-  // Each preview runs for its teaser's length, then hands over to the next.
+  // Each preview runs for its teaser's length, then hands over to the next. A pause keeps the time left.
+  const remaining = useRef({ i: -1, ms: 0 })
   useEffect(() => {
     if (counting || !d) return
-    const t = setTimeout(() => go(i + 1), teaserMs(d))
-    return () => clearTimeout(t)
+    if (remaining.current.i !== i) remaining.current = { i, ms: teaserMs(d) }
+    if (paused) return
+    const since = Date.now()
+    const t = setTimeout(() => go(i + 1), remaining.current.ms)
+    return () => {
+      clearTimeout(t)
+      remaining.current.ms -= Date.now() - since
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [i, counting, d])
+  }, [i, counting, d, paused])
 
   // The pick: the teaser that lifted the heart meter most (ties go to the earlier one).
   const winner = counting ? picks.reduce((a, b) => ((scores[b.id] ?? 50) > (scores[a.id] ?? 50) ? b : a)) : null
 
   useEffect(() => {
-    if (!winner) return
+    if (!winner || paused) return
     if (left <= 0) return play(winner.id)
     const t = setTimeout(() => setLeft((n) => n - 1), 1000)
     return () => clearTimeout(t)
-  }, [winner, left])
+  }, [winner, left, paused])
 
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (e.key === 'Escape') other()
+      else if (e.key === 'p' || e.key === 'P') setPaused((p) => !p)
       else if (e.key === 'ArrowRight' && !counting) go(i + 1)
       else if (e.key === 'ArrowLeft') go(counting ? picks.length - 1 : i - 1)
     }
     window.addEventListener('keydown', key)
     const off = onGesture((g) => {
       if (g === 'right') play((winner ?? show).id) // yes: watch it
+      else if (g === 'up') setPaused((p) => !p) // look up again to resume
       else if (g !== 'left') return // closed eyes means nothing here
       else if (counting) other() // no to the pick: three other shows
       else go(i + 1) // no: skip to the next preview
@@ -137,7 +148,7 @@ export default function Lineup({ comics, skip = [], onOther }: { comics: LineupS
                 Other picks
               </button>
             </div>
-            <p className="lineup-hint">Turn right to play now · Turn left for other picks</p>
+            <p className="lineup-hint" aria-live="polite">{paused ? 'Paused · look up again to resume' : 'Turn right to play now · Turn left for other picks'}</p>
           </div>
         </div>
       </div>
@@ -146,7 +157,7 @@ export default function Lineup({ comics, skip = [], onOther }: { comics: LineupS
 
   return (
     <div className="lineup" role="dialog" aria-modal="true" aria-labelledby="lineup-title" data-face-own>
-      <Teaser data={d ?? null} waiting="Loading preview…" />
+      <Teaser data={d ?? null} waiting="Loading preview…" paused={paused} />
       <div className="lineup-shade" />
       <header className="lineup-top">
         <span className="lineup-kicker">Pick a show</span>
@@ -184,7 +195,7 @@ export default function Lineup({ comics, skip = [], onOther }: { comics: LineupS
             Next preview
           </button>
         </div>
-        <p className="lineup-hint">Turn right to watch · Turn left to skip</p>
+        <p className="lineup-hint" aria-live="polite">{paused ? 'Paused · look up again to resume' : 'Turn right to watch · Turn left to skip'}</p>
       </div>
 
       <footer className="lineup-bottom">
@@ -198,7 +209,7 @@ export default function Lineup({ comics, skip = [], onOther }: { comics: LineupS
           </span>
         )}
         <span className="lineup-progress" aria-hidden="true">
-          {d && <span key={show.id} style={{ animationDuration: `${teaserMs(d)}ms` }} />}
+          {d && <span key={show.id} style={{ animationDuration: `${teaserMs(d)}ms`, animationPlayState: paused ? 'paused' : 'running' }} />}
         </span>
       </footer>
     </div>
