@@ -37,6 +37,8 @@ export default function FaceDebug() {
   }, [on])
 
   if (!on) return null
+  // A quick visual for the candidate "this is a command" signals: 0.00 ▏▏▏▏▏▏▏▏▏▏ 1.00
+  const bar = (v = 0) => `${v.toFixed(2)} ${'█'.repeat(Math.round(v * 10)).padEnd(10, '·')}`
   const { rest } = turnState()
   const off = f && rest !== null ? f.yaw - rest : 0
   return (
@@ -47,6 +49,9 @@ export default function FaceDebug() {
       off   {off.toFixed(1)}° {Math.abs(off) >= 16 ? (off > 0 ? '→ RIGHT' : '← LEFT') : ''}{'\n'}
       pitch {f?.pitch.toFixed(1)}°{'\n'}
       eyes  L {f?.blink.l.toFixed(2)} R {f?.blink.r.toFixed(2)}{'\n'}
+      tongue {bar(f?.tongue)}{'\n'}
+      brows  {bar(f?.browUp)}{'\n'}
+      mouth  {bar(f?.jaw)}{'\n'}
       fps   {fps}{'\n'}
       {log.join('\n')}
     </pre>

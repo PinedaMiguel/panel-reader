@@ -17,6 +17,8 @@ export type FaceFrame = {
   blink: { l: number; r: number } // 0..1 per eye
   jaw: number // 0..1 mouth open (moving = talking)
   faces: number // faces in view (a second one pauses control)
+  tongue: number // 0..1 tongue out
+  browUp: number // 0..1 eyebrows raised
 }
 
 export type Gesture = 'nod' | 'shake' | 'left' | 'right' | 'eyes' // left/right: the user's own left/right; eyes: closed ~1 s
@@ -131,7 +133,7 @@ function toFrame(r: ReturnType<FaceLandmarker['detectForVideo']>, t: number): Fa
   const lm = r.faceLandmarks?.[0]
   const shapes = r.faceBlendshapes?.[0]?.categories
   if (!lm || !shapes) {
-    return { t, found: false, yaw: 0, pitch: 0, gaze: { x: 0, y: 0 }, smile: 0, eyeWide: 0, browDown: 0, sneer: 0, blink: { l: 0, r: 0 }, jaw: 0, faces: 0 }
+    return { t, found: false, yaw: 0, pitch: 0, gaze: { x: 0, y: 0 }, smile: 0, eyeWide: 0, browDown: 0, sneer: 0, blink: { l: 0, r: 0 }, jaw: 0, faces: 0, tongue: 0, browUp: 0 }
   }
   const b = (name: string) => shapes.find((c) => c.categoryName === name)?.score ?? 0
   // Head rotation from the facial transformation matrix (column-major 4x4).
@@ -165,6 +167,8 @@ function toFrame(r: ReturnType<FaceLandmarker['detectForVideo']>, t: number): Fa
     sneer: (b('noseSneerLeft') + b('noseSneerRight')) / 2,
     blink: { l: b('eyeBlinkLeft'), r: b('eyeBlinkRight') },
     jaw: b('jawOpen'),
+    tongue: b('tongueOut'),
+    browUp: (b('browInnerUp') + b('browOuterUpLeft') + b('browOuterUpRight')) / 3,
     faces: r.faceLandmarks?.length ?? 0,
   }
 }
