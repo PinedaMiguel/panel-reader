@@ -4,7 +4,7 @@
 
 Nod & Read turns comic pages into an accessible reading experience you can control with your face. It finds every panel, puts them in reading order, and plays them back one per screen with a voice for each character, sound effects, and an optional audiobook narrator that describes each scene, the characters' expressions and their body language. It's built for blind and low-vision readers, dyslexic and colour-blind readers, neurodivergent readers, and anyone who wants to listen to a comic.
 
-Built at **KnightHacks IX** (UCF, October 2026).
+Built at **KnightHacks IX** by Miguel Pineda, Royce Moriyasu, and Anna Qin (UCF, October 2026).
 
 ## What it does
 
