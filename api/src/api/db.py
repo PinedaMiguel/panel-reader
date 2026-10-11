@@ -40,6 +40,8 @@ SCHEMA = [
     "create index if not exists pages_hash on pages (hash)",
     # "What to watch next": spoiler-free synopsis, tags, teaser panels (written once by Gemini).
     "alter table comics add column if not exists preview jsonb",
+    # Film-style trailer cuts (kept, not shown); its music bed plays quietly under the teaser.
+    "alter table comics add column if not exists trailer jsonb",
     """create table if not exists panels (
         comic_id text not null references comics(id) on delete cascade,
         id text not null,

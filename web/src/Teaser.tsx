@@ -1,17 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
 
-// A trailer-style teaser: a few key panels crossfading, with one voiced line landing on the second shot.
-// Used by the preview dialog and the startup lineup.
+// A trailer-style teaser: a few key panels crossfading, with one voiced line landing on the second shot, over
+// the comic's mood-matched music bed (quiet, dipping under the line). Used by the preview dialog and the lineup.
 
 export type TeaserData = {
   teaser: { image: string }[]
   teaserLine: { text: string; audio: string | null; speaker: string | null } | null
+  music?: string | null
 }
+const MUSIC = 0.32
+const DUCKED = 0.1
 export const SHOT_MS = 2800
 export const teaserMs = (d: TeaserData) => Math.max(3, d.teaser.length) * SHOT_MS
 
 export default function Teaser({ data, waiting }: { data: TeaserData | null; waiting?: string }) {
   const audio = useRef<HTMLAudioElement | null>(null)
+  const music = useRef<HTMLAudioElement | null>(null)
   const [shot, setShot] = useState(0)
   const [muted, setMuted] = useState(false)
   const [speaking, setSpeaking] = useState(false)
@@ -22,13 +26,26 @@ export default function Teaser({ data, waiting }: { data: TeaserData | null; wai
     const t = setInterval(() => setShot((s) => (s + 1) % data.teaser.length), SHOT_MS)
     const line = data.teaserLine?.audio
     let a: HTMLAudioElement | null = null
+    const bed = data.music ? new Audio(data.music) : null
+    if (bed) {
+      bed.volume = MUSIC
+      bed.muted = muted
+      music.current = bed
+      bed.play().catch(() => {})
+    }
     const cue = line
       ? setTimeout(() => {
           a = new Audio(line)
           a.muted = muted
           audio.current = a
-          a.onplay = () => setSpeaking(true)
-          a.onended = () => setSpeaking(false)
+          a.onplay = () => {
+            setSpeaking(true)
+            if (bed) bed.volume = DUCKED
+          }
+          a.onended = () => {
+            setSpeaking(false)
+            if (bed) bed.volume = MUSIC
+          }
           a.play().catch(() => setSpeaking(false))
         }, SHOT_MS * 0.6)
       : undefined
@@ -36,7 +53,9 @@ export default function Teaser({ data, waiting }: { data: TeaserData | null; wai
       clearInterval(t)
       clearTimeout(cue)
       a?.pause()
+      bed?.pause()
       audio.current = null
+      music.current = null
       setSpeaking(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -44,6 +63,7 @@ export default function Teaser({ data, waiting }: { data: TeaserData | null; wai
 
   useEffect(() => {
     if (audio.current) audio.current.muted = muted
+    if (music.current) music.current.muted = muted
   }, [muted])
 
   return (
@@ -57,7 +77,7 @@ export default function Teaser({ data, waiting }: { data: TeaserData | null; wai
           {data.teaserLine.speaker && <b>{data.teaserLine.speaker}</b>}“{data.teaserLine.text}”
         </p>
       )}
-      {data?.teaserLine?.audio && (
+      {(data?.teaserLine?.audio || data?.music) && (
         <button type="button" className="teaser-mute" onClick={() => setMuted((m) => !m)} aria-pressed={muted}>
           {muted ? '🔇 Unmute' : '🔊 Mute'}
         </button>

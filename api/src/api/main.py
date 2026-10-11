@@ -247,7 +247,14 @@ def comic_preview(comic_id: str):
         "teaser": [{"image": p["image"]} for p in teaser],
         "teaserLine": line,
         "cover": comic["pages"][0]["panels"][0]["image"] if comic["pages"] else None,
+        "music": _music(comic_id),
     }
+
+
+def _music(comic_id: str) -> str | None:
+    """The comic's mood-matched music bed (made with its trailer), played quietly under the teaser."""
+    rows = db.query("select trailer->>'music' as key from comics where id = $1", comic_id)
+    return storage.presign(rows[0]["key"]) if rows and rows[0]["key"] else None
 
 
 @app.get("/api/comics/{comic_id}")
