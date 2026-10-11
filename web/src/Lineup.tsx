@@ -92,6 +92,7 @@ export default function Lineup({ comics, skip = [], onOther }: { comics: LineupS
     window.addEventListener('keydown', key)
     const off = onGesture((g) => {
       if (g === 'right') play((winner ?? show).id) // yes: watch it
+      else if (g !== 'left') return // closed eyes means nothing here
       else if (counting) other() // no to the pick: three other shows
       else go(i + 1) // no: skip to the next preview
     })

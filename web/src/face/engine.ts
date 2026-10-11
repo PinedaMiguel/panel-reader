@@ -21,7 +21,7 @@ export type FaceFrame = {
   browUp: number // 0..1 eyebrows raised
 }
 
-export type Gesture = 'left' | 'right' // the user's own left/right: right = yes, left = no
+export type Gesture = 'left' | 'right' | 'eyes' // turns: the user's own right = yes, left = no; eyes: closed ~1 s
 
 type Listener = (f: FaceFrame) => void
 type GestureListener = (g: Gesture) => void
@@ -174,7 +174,8 @@ function toFrame(r: ReturnType<FaceLandmarker['detectForVideo']>, t: number): Fa
 }
 
 // ---- Gestures ----
-// Just two: turn right = yes, turn left = no. Every turn passes one gate (fire). Nothing acts while control
+// Turn right = yes, turn left = no, and closing your eyes toggles the narrator while reading. Every gesture
+// passes one gate (fire). Nothing acts while control
 // is paused (looking away, face lost, a second face, the presenter's H key), during the grace after a screen
 // change, or before the head has re-armed: back in the centre and still after the previous turn. So one
 // movement is one action, a leftover turn after a screen change does nothing, and resting never repeats.
@@ -276,6 +277,8 @@ function detectGestures(f: FaceFrame) {
   }
 
   detectTurn(f, off)
+  detectEyes(f)
+  detectReaction(f)
   setState(manual ? 'paused' : away ? away : !armed ? 'wait' : 'ready')
 }
 
@@ -314,10 +317,12 @@ let turnSince = 0
 let turnDone = false
 let wentFar = false
 let turnDir = 0
+let turnEnded = 0
 function detectTurn(f: FaceFrame, off: number) {
   const a = Math.abs(off)
   if (a < TURN_DEG) {
     if (turnSince && !turnDone && wentFar && f.t - turnSince < AWAY_MS) fire(turnDir > 0 ? 'right' : 'left', f)
+    if (turnSince) turnEnded = f.t
     turnSince = 0
     turnDone = false
     wentFar = false
@@ -329,4 +334,66 @@ function detectTurn(f: FaceFrame, off: number) {
   if (turnDone || wentFar || f.t - turnSince < HOLD_MS) return
   turnDone = true
   fire(turnDir > 0 ? 'right' : 'left', f)
+}
+
+// Eyes closed = both eyes shut for about a second: the narrator toggle while reading. Far more reliable
+// than a wink; an ordinary blink lasts a fraction of the hold, so it never counts. Once per closing.
+const CLOSED = 0.5
+export const CLOSE_MS = 900
+let closedSince = 0
+let closedDone = false
+const shut = (f: FaceFrame) => f.blink.l > CLOSED && f.blink.r > CLOSED
+// 0..1: how far through the hold you are (drives the setup's live meter).
+export const eyesClosedLevel = (f: FaceFrame) => (closedSince && shut(f) ? Math.min(1, (f.t - closedSince) / CLOSE_MS) : 0)
+function detectEyes(f: FaceFrame) {
+  if (!shut(f)) {
+    closedSince = 0
+    closedDone = false
+    return
+  }
+  closedSince ||= f.t
+  if (closedDone || f.t - closedSince < CLOSE_MS) return
+  closedDone = true
+  fire('eyes', f)
+}
+
+// ---- Reactions (not commands) ----
+// Nods and shakes happen naturally while people read and talk, so they never trigger anything. They're read
+// only as reactions for the heart meter: a nod means you're enjoying it, a shake that you're not.
+// Nod = up-down swing of the head (pitch), shake = left-right (yaw), within WINDOW_MS, the other axis steady.
+// Swings = crossings of the middle of the recent range, counting only clear excursions to each side, so
+// jitter never counts and a turn (a single crossing) is never a shake.
+export type Reaction = 'nod' | 'shake'
+const reactionListeners = new Set<(r: Reaction) => void>()
+export function onReaction(fn: (r: Reaction) => void) {
+  reactionListeners.add(fn)
+  return () => reactionListeners.delete(fn)
+}
+let reactionUntil = 0
+function detectReaction(f: FaceFrame) {
+  if (turnSince || f.t - turnEnded < WINDOW_MS || f.t < reactionUntil || f.t - seenSince < 2500) return
+  const win = recent(f, WINDOW_MS)
+  if (win.length < 5) return
+  const swings = (key: 'yaw' | 'pitch', dead: number) => {
+    const v = win.map((h) => h[key])
+    const lo = Math.min(...v)
+    const hi = Math.max(...v)
+    const mid = (lo + hi) / 2
+    let turns = 0
+    let side = 0
+    for (const x of v) {
+      if (Math.abs(x - mid) < dead) continue
+      const sgn = Math.sign(x - mid)
+      if (side && sgn !== side) turns++
+      side = sgn
+    }
+    return { range: hi - lo, turns }
+  }
+  const p = swings('pitch', 3)
+  const y = swings('yaw', 4)
+  const r: Reaction | null =
+    p.range > 10 && p.turns >= 2 && y.range < p.range * 0.6 ? 'nod' : y.range > 14 && y.turns >= 2 && p.range < y.range * 0.6 ? 'shake' : null
+  if (!r) return
+  reactionUntil = f.t + 1300
+  reactionListeners.forEach((fn) => fn(r))
 }

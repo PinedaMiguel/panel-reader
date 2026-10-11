@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useSettings } from '../settings'
-import { cameraStream, onFrame, onGesture, pauseGestures, startFace, stopFace, type Gesture } from './engine'
+import { cameraStream, onFrame, onGesture, pauseGestures, startFace, stopFace, eyesClosedLevel, type Gesture } from './engine'
 import FaceGuide, { CYCLE_S, type GuideAction } from './FaceGuide'
 import SwitchLayer from './SwitchLayer'
 
@@ -14,10 +14,11 @@ const STEPS: Step[] = [
   { id: 'hello', act: 'idle', title: 'Look at the camera', line: 'Look at the camera so it can see your face. Nothing is recorded.' },
   { id: 'right', act: 'right', title: 'Turn right = yes', line: 'Turn your head right to say yes: it picks the show.' },
   { id: 'left', act: 'left', title: 'Turn left = no', line: 'Turn your head left to say no: it skips to the next show.' },
+  { id: 'eyes', act: 'eyes', title: 'Close your eyes', line: 'Close your eyes for a second to turn the narrator on or off while a comic plays.' },
   { id: 'smile', act: 'smile', title: 'Just enjoy it', line: 'Your smiles fill a heart meter that picks what to read next. Nothing to do here.' },
   { id: 'ready', act: 'right', title: 'You’re set', line: 'Turn your head right to start reading.' },
 ]
-const GESTURE_NAME: Record<Gesture, string> = { right: 'a right turn', left: 'a left turn' }
+const GESTURE_NAME: Record<Gesture, string> = { right: 'a right turn', left: 'a left turn', eyes: 'closing your eyes' }
 const SEEN_MS = 1500 // face steadily in view before the first gesture
 const DONE_MS = 1100 // success moment before the next step
 // Demo animation per step: yes picks a show (it opens), no skips it (it closes).
@@ -32,6 +33,7 @@ export default function Welcome() {
   const [success, setSuccess] = useState(false)
   const [miss, setMiss] = useState<string | null>(null)
   const [covers, setCovers] = useState<string[]>([])
+  const [closed, setClosed] = useState(0) // live: how far through the eyes-closed hold, 1 = done
   const video = useRef<HTMLVideoElement>(null)
   const step = STEPS[i]
   const go = (to: number) => {
@@ -117,6 +119,7 @@ export default function Welcome() {
     let since = 0
     const off = onFrame((f) => {
       setFace(f.found)
+      if (step.id === 'eyes' && f.found) setClosed(eyesClosedLevel(f))
       if (step.id !== 'hello') return
       if (!f.found) since = 0
       else if (!since) since = f.t
@@ -216,6 +219,11 @@ export default function Welcome() {
           {step.id === 'hello' && camera === 'denied' && (
             <p className="welcome-warn">The camera is blocked. Allow it, or use mouse &amp; keyboard.</p>
           )}
+          {step.id === 'eyes' && !success && (
+            <span className={`hold-meter${closed >= 1 ? ' hit' : ''}`} role="meter" aria-label="Eyes closed" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(closed * 100)}>
+              <span style={{ transform: `scaleX(${closed})` }} />
+            </span>
+          )}
           {miss && <p className="welcome-miss">{miss}</p>}
           {step.id === 'ready' ? (
             <button type="button" className="btn btn-accent btn-lg welcome-start" autoFocus onClick={() => finish(true)}>
@@ -247,6 +255,22 @@ function Demo({ id, covers }: { id: StepId; covers: string[] }) {
       {covers[k] && <img src={covers[k]} alt="" />}
     </span>
   )
+  if (id === 'eyes')
+    return (
+      <div className="demo-screen demo-reading">
+        {covers[0] && <img src={covers[0]} alt="" />}
+        <span className="demo-narrator">
+          <Icon name="speaker" />
+          <span className="demo-bars">
+            <i />
+            <i />
+            <i />
+            <i />
+          </span>
+          <span className="demo-toggle" />
+        </span>
+      </div>
+    )
   if (id === 'smile')
     return (
       <div className="demo-screen demo-hearts">

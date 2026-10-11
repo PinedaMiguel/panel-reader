@@ -42,7 +42,7 @@ export default function UpNext({ comicId, onStay }: { comicId: string; onStay: (
     window.addEventListener('keydown', key, true) // ahead of the finale's own Esc
     const off = onGesture((g) => {
       if (g === 'right') play(pick.show.id) // yes
-      else freshLineup(comicId) // no: three other shows
+      else if (g === 'left') freshLineup(comicId) // no: three other shows
     })
     return () => {
       off()

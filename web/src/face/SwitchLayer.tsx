@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react'
 import { controlState, onControlState, onGesture, pauseGestures, startFace, stopFace, toggleManualPause, type ControlState, type Gesture } from './engine'
 
 // Hands-free control for the whole site, kept as simple as possible: turn your head right for yes (press
-// what's highlighted: Play, Watch...) and left for no (close, go back). While a comic plays, head movements
-// do nothing. The highlight is real keyboard focus, so screen readers announce it and Tab/mouse still work.
+// what's highlighted: Play, Watch...) and left for no (close, go back). While a comic plays, right and left
+// go to the next and previous panel. The highlight is real keyboard focus, so screen readers announce it and Tab/mouse still work.
 
 const SEL = 'button, a[href], [role="button"], input[type="checkbox"], summary, [data-switch-target]'
-const LABEL: Record<Gesture, string> = { right: 'Yes →', left: '← No' }
+const LABEL: Record<Gesture, string> = { right: 'Yes →', left: '← No', eyes: 'Eyes closed: narrator' }
 
 // Controls in reading order. Inside an open dialog only the dialog's controls count, like a keyboard.
 function targets(): HTMLElement[] {
@@ -63,7 +63,8 @@ export default function SwitchLayer() {
       if (document.querySelector('[data-face-own]')) return // that screen (the setup, the lineup) handles gestures itself
       const dialog = [...document.querySelectorAll('dialog')].find((d) => d.open)
       const inReader = !!document.querySelector('.reader[data-playing="true"]') && !dialog
-      if (inReader) return // the comic plays by itself; head movements while reading shouldn't do anything
+      if (g === 'eyes') return inReader && key('a') // the narrator toggle, while reading
+      if (inReader) return key(g === 'right' ? 'ArrowRight' : 'ArrowLeft') // while reading: next / previous panel
       if (g === 'right') {
         // Yes: press what's highlighted (something always is, see below).
         const el = document.activeElement as HTMLElement | null
