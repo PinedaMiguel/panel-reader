@@ -229,7 +229,8 @@ def comic_preview(comic_id: str):
     tl = pv.get("teaser_line")
     if tl and tl["panel_id"] in panels_by_id and tl["line_index"] < len(panels_by_id[tl["panel_id"]]["lines"]):
         l = panels_by_id[tl["panel_id"]]["lines"][tl["line_index"]]
-        line = {"text": l["text"], "audio": l.get("audio"), "speaker": chars.get(l.get("speaker"), {}).get("name")}
+        sid = l.get("speaker")
+        line = {"text": l["text"], "audio": l.get("audio"), "speaker": (chars.get(sid) or {}).get("name") or (sid and sid.replace("_", " ").title())}
     return {
         "id": comic_id,
         "title": comic["title"],

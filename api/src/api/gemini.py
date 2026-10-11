@@ -248,8 +248,11 @@ service's title page. From the script below:
 - genres: 2-4 short genre tags (e.g. "superhero", "political thriller", "jungle adventure", "war drama").
 - moods: 2-3 short mood tags (e.g. "pulpy", "tense", "witty", "eerie").
 - main_characters: the 2-4 most important character ids, most important first.
-- teaser_panels: 3-4 panel ids, in reading order, that make the most enticing teaser without spoiling the end.
-- teaser_line: the single most intriguing line of dialogue (panel id + its line index), or null if there is none.
+- teaser_panels: 3-4 panel ids, in reading order, that make the most enticing teaser without spoiling the end. They
+  flash by in a few seconds each, so pick panels that read at a glance: a clear subject or striking image, little text,
+  not cramped. Prefer action, faces and big moments over panels that are mostly speech balloons or captions.
+- teaser_line: the single most intriguing SHORT line of dialogue (at most about 15 words) spoken by a known character
+  (panel id + its line index). Only null if the comic has no dialogue at all.
 
 Script (JSON):
 {script}
