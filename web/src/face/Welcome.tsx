@@ -67,7 +67,6 @@ export default function Welcome() {
   }
   const retry = () => pending.current && say(pending.current)
   useEffect(() => {
-    if (step.id === 'smile') return // nothing to do there, so nothing to say
     const t = setTimeout(() => say(step.id), 350)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -89,6 +88,23 @@ export default function Welcome() {
     }
   })
   useEffect(() => () => speaker.current?.pause(), [])
+  // The heart step: a soft sparkle each time the demo's hearts float up (start of each loop), under the line.
+  useEffect(() => {
+    if (step.id !== 'smile' || !voice) return
+    const fx: HTMLAudioElement[] = []
+    const pop = () => {
+      const a = new Audio('/setup-voice/hearts.mp3')
+      a.volume = 0.4
+      fx.push(a)
+      a.play().catch(() => {})
+    }
+    pop()
+    const t = setInterval(pop, CYCLE_S * 1000)
+    return () => {
+      clearInterval(t)
+      fx.forEach((a) => a.pause())
+    }
+  }, [step.id, voice])
 
   const finish = (faceControl: boolean) => set({ onboarded: true, gaze: faceControl, heart: faceControl })
 
