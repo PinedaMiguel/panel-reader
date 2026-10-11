@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { onFrame, onGesture, startFace, stopFace } from './engine'
 
 // Passive enjoyment meter. While you read, spontaneous signs of interest (smiling, eyes opening wide,
-// nodding) fill the heart; a lowered brow, a sneer or a head shake drain it. Each signal is measured
+// turning right for yes) fill the heart; a lowered brow, a sneer or turning left for no drain it. Each signal is measured
 // against your own neutral face (a slow-moving baseline), so a resting smile or a naturally low brow
-// doesn't count, and brief twitches are smoothed away. Scores are kept per comic for recommendations.
+// doesn't count, and brief twitches are smoothed away. Turning right (yes) or left (no) also counts. Scores are kept per comic for recommendations.
 
 const KEY = 'panel-reader-hearts'
 export type Hearts = Record<string, { score: number; updated: number }>
@@ -90,7 +90,7 @@ export function useHeart(comicId: string, enabled: boolean) {
         saveHeart(comicId, value.current)
       }
     })
-    const offGesture = onGesture((g) => alive && (g === 'nod' || g === 'shake') && bump(g === 'nod' ? GESTURE : -GESTURE))
+    const offGesture = onGesture((g) => alive && bump(g === 'right' ? GESTURE : -GESTURE)) // right = yes (like), left = no
     startFace().catch(() => alive && setStatus('denied'))
 
     return () => {

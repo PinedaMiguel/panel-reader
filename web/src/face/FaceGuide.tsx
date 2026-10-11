@@ -5,7 +5,7 @@ import * as THREE from 'three'
 // each gesture on a loop, so it can be copied without reading anything. Mirrored like a fitness video:
 // "right" turns toward the screen's right, the way the user's own head should go.
 
-export type GuideAction = 'idle' | 'right' | 'left' | 'nod' | 'shake' | 'eyes' | 'smile' | 'happy'
+export type GuideAction = 'idle' | 'right' | 'left' | 'smile' | 'happy'
 export const CYCLE_S = 3.2 // one demonstration; the demo animations next to the head share this loop
 
 const SKIN = 0xf2c29b
@@ -29,25 +29,6 @@ function pose(action: GuideAction, s: number): Pose {
       const k = hold(t, 0.3, 2.1) * (action === 'right' ? 1 : -1)
       p.yaw += 0.62 * k
       p.brow = Math.abs(k) * 0.3
-      break
-    }
-    case 'nod': {
-      const w = t > 0.3 && t < 1.7 ? Math.sin(((t - 0.3) / 1.4) * Math.PI * 2) : 0
-      p.pitch += 0.32 * Math.max(0, w) - 0.12 * Math.max(0, -w)
-      p.smile = 0.5
-      break
-    }
-    case 'shake': {
-      const w = t > 0.3 && t < 1.8 ? Math.sin(((t - 0.3) / 1.5) * Math.PI * 4) * Math.sin(((t - 0.3) / 1.5) * Math.PI) : 0
-      p.yaw += 0.42 * w
-      p.smile = 0
-      break
-    }
-    case 'eyes': {
-      const k = hold(t, 0.4, 1.7, 0.15) // both eyes shut, held a moment
-      p.lidL = p.lidR = Math.max(blink, k)
-      p.pitch += 0.05 * k
-      p.smile = 0.25 + 0.35 * k
       break
     }
     case 'smile':

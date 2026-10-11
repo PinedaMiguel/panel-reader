@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react'
 import { controlState, onControlState, onGesture, pauseGestures, startFace, stopFace, toggleManualPause, type ControlState, type Gesture } from './engine'
 
-// Hands-free control for the whole site, the "switch access" way: no pointer to aim and no calibration.
-// Turn your head right/left to move a highlight to the next/previous control, nod to press it, shake to
-// go back. While a comic plays, only deliberate gestures count (an unconscious nod or shake shouldn't
-// stop the show): turns flip panels and closing your eyes for a second toggles audiobook narration. The highlight is real keyboard focus,
-// so screen readers announce each control and Tab/mouse keep working alongside.
+// Hands-free control for the whole site, kept as simple as possible: turn your head right for yes (press
+// what's highlighted: Play, Watch...) and left for no (close, go back). While a comic plays, head movements
+// do nothing. The highlight is real keyboard focus, so screen readers announce it and Tab/mouse still work.
 
 const SEL = 'button, a[href], [role="button"], input[type="checkbox"], summary, [data-switch-target]'
-const LABEL: Record<Gesture, string> = { right: 'Next →', left: '← Previous', nod: 'Nod: press', shake: 'Shake: back', eyes: 'Eyes closed: narrator' }
+const LABEL: Record<Gesture, string> = { right: 'Yes →', left: '← No' }
 
 // Controls in reading order. Inside an open dialog only the dialog's controls count, like a keyboard.
 function targets(): HTMLElement[] {
@@ -20,21 +18,11 @@ function targets(): HTMLElement[] {
   })
 }
 
-function move(by: 1 | -1) {
-  const list = targets()
-  if (!list.length) return
-  const i = list.indexOf(document.activeElement as HTMLElement)
-  // Nothing highlighted yet: start at the first control on screen.
-  const next = i < 0 ? list.find((el) => el.getBoundingClientRect().bottom > 0) ?? list[0] : list[(i + by + list.length) % list.length]
-  next.focus({ preventScroll: true })
-  next.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
-}
 
 // What the face engine is doing right now, always on screen so nobody wonders why a gesture did nothing.
 const STATE: Record<ControlState, string> = {
   ready: 'Ready',
   wait: 'Hold still…',
-  talking: 'Talking: nods paused',
   away: 'Paused: look at the screen',
   others: 'Paused: someone else is in view',
   paused: 'Paused: press H to resume',
@@ -75,18 +63,12 @@ export default function SwitchLayer() {
       if (document.querySelector('[data-face-own]')) return // that screen (the setup, the lineup) handles gestures itself
       const dialog = [...document.querySelectorAll('dialog')].find((d) => d.open)
       const inReader = !!document.querySelector('.reader[data-playing="true"]') && !dialog
-      if (g === 'eyes') {
-        if (!inReader) return
-        key('a')
-      } else if (inReader && (g === 'nod' || g === 'shake')) return
-      else if (g === 'left' || g === 'right') {
-        if (inReader) key(g === 'right' ? 'ArrowRight' : 'ArrowLeft')
-        else move(g === 'right' ? 1 : -1)
-      } else if (g === 'nod') {
+      if (inReader) return // the comic plays by itself; head movements while reading shouldn't do anything
+      if (g === 'right') {
+        // Yes: press what's highlighted (something always is, see below).
         const el = document.activeElement as HTMLElement | null
         if (el && el !== document.body && targets().includes(el)) el.click()
-        else move(1)
-      } else if (dialog) dialog.close() // a synthetic Esc doesn't close a real dialog
+      } else if (dialog) dialog.close() // No: close (a synthetic Esc doesn't close a real dialog)
       else key('Escape')
       setToast(LABEL[g])
       clearTimeout(hide)
@@ -130,7 +112,7 @@ export default function SwitchLayer() {
         </p>
       )}
       <p className="switch-legend" aria-hidden="true">
-        <b>Turn</b> ← → move · <b>Nod</b> press · <b>Shake</b> back
+        <b>Turn right</b> yes · <b>Turn left</b> no
       </p>
     </div>
   )

@@ -6,7 +6,7 @@ import Teaser, { teaserMs, type TeaserData } from './Teaser'
 
 // The startup lineup, Netflix style: three random shows, each previewed in turn. Nod to watch the one
 // on screen; leave it and the next preview starts. After all three, the one whose teaser your heart meter
-// liked most plays next, after a short countdown. Turn = next/previous. A shake does nothing here.
+// liked most plays next, after a short countdown. Turn right = yes (watch), left = no (skip / other picks).
 
 export type LineupShow = { id: string; title: string; cover?: string | null }
 type Data = TeaserData & { synopsis: string; genres: string[]; moods: string[]; minutes: number }
@@ -91,9 +91,9 @@ export default function Lineup({ comics, skip = [], onOther }: { comics: LineupS
     }
     window.addEventListener('keydown', key)
     const off = onGesture((g) => {
-      if (g === 'nod') play((winner ?? show).id)
-      else if (g === 'right' && !counting) go(i + 1)
-      else if (g === 'left') go(counting ? picks.length - 1 : i - 1)
+      if (g === 'right') play((winner ?? show).id) // yes: watch it
+      else if (counting) other() // no to the pick: three other shows
+      else go(i + 1) // no: skip to the next preview
     })
     return () => {
       off()
@@ -136,7 +136,7 @@ export default function Lineup({ comics, skip = [], onOther }: { comics: LineupS
                 Other picks
               </button>
             </div>
-            <p className="lineup-hint">Nod to play now</p>
+            <p className="lineup-hint">Turn right to play now · Turn left for other picks</p>
           </div>
         </div>
       </div>
@@ -183,7 +183,7 @@ export default function Lineup({ comics, skip = [], onOther }: { comics: LineupS
             Next preview
           </button>
         </div>
-        <p className="lineup-hint">Nod to watch · Turn for the next one</p>
+        <p className="lineup-hint">Turn right to watch · Turn left to skip</p>
       </div>
 
       <footer className="lineup-bottom">

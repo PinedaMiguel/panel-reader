@@ -21,7 +21,7 @@ export type FaceFrame = {
   browUp: number // 0..1 eyebrows raised
 }
 
-export type Gesture = 'nod' | 'shake' | 'left' | 'right' | 'eyes' // left/right: the user's own left/right; eyes: closed ~1 s
+export type Gesture = 'left' | 'right' // the user's own left/right: right = yes, left = no
 
 type Listener = (f: FaceFrame) => void
 type GestureListener = (g: Gesture) => void
@@ -48,7 +48,7 @@ export function onGesture(fn: GestureListener) {
   return () => gestureListeners.delete(fn)
 }
 
-// Dev only: fake a gesture from the console or a test (`__gesture('nod')`).
+// Dev only: fake a gesture from the console or a test (`__gesture('right')`).
 if (import.meta.env.DEV)
   Object.assign(window, {
     __gesture: (g: Gesture) => gestureListeners.forEach((fn) => fn(g)),
@@ -174,14 +174,13 @@ function toFrame(r: ReturnType<FaceLandmarker['detectForVideo']>, t: number): Fa
 }
 
 // ---- Gestures ----
-// Every gesture passes one gate (fire). Nothing acts while control is paused (looking away, face lost,
-// a second face, the presenter's H key), during the grace after a screen change, or before the head has
-// re-armed: back in the centre and still after the previous gesture. So one movement is one action, a
-// leftover nod after a screen change does nothing, and resting never repeats anything. Nods and shakes
-// also wait while you're talking (people nod along as they speak); turns don't, so a demo can be narrated.
+// Just two: turn right = yes, turn left = no. Every turn passes one gate (fire). Nothing acts while control
+// is paused (looking away, face lost, a second face, the presenter's H key), during the grace after a screen
+// change, or before the head has re-armed: back in the centre and still after the previous turn. So one
+// movement is one action, a leftover turn after a screen change does nothing, and resting never repeats.
 
-export type ControlState = 'ready' | 'wait' | 'talking' | 'away' | 'others' | 'paused'
-const WINDOW_MS = 1200 // nod/shake window
+export type ControlState = 'ready' | 'wait' | 'away' | 'others' | 'paused'
+const WINDOW_MS = 1200 // recent frames kept (stillness check)
 const ARM_MS = 400 // centred and still this long re-arms
 const STILL_DEG = 4
 const TURN_DEG = 16
@@ -189,7 +188,6 @@ const AWAY_DEG = 38 // turned further than this...
 const AWAY_MS = 2500 // ...for this long (or the face lost this long) = looking at someone else, not a gesture
 const HOLD_MS = 350
 const RESUME_MS = 1000 // facing the screen this long after looking away resumes control
-const TALK_MS = 1000
 const POSTURE_MS = 12000
 const history: FaceFrame[] = []
 let armed = false
@@ -199,7 +197,6 @@ let away: 'away' | 'others' | null = null
 let backSince = 0
 let lostSince = 0
 let farSince = 0
-let talkingUntil = 0
 let state: ControlState = 'wait'
 let lastT = 0 // time of the latest frame, so pauses line up with the frames they apply to
 const stateListeners = new Set<(s: ControlState) => void>()
@@ -228,7 +225,6 @@ function setState(next: ControlState) {
 
 function fire(g: Gesture, f: FaceFrame) {
   if (manual || away || !armed || f.t < graceUntil) return
-  if ((g === 'nod' || g === 'shake') && f.t < talkingUntil) return
   armed = false
   history.length = 0
   gestureListeners.forEach((fn) => fn(g))
@@ -273,18 +269,14 @@ function detectGestures(f: FaceFrame) {
     }
   }
 
-  // Talking: the mouth opening and closing quickly.
-  if (spread(recent(f, 700), 'jaw') > 0.12) talkingUntil = f.t + TALK_MS
 
-  if (!armed && !manual && !away && f.t >= graceUntil && centred && still && !shut(f)) {
+  if (!armed && !manual && !away && f.t >= graceUntil && centred && still) {
     armed = true
     history.length = 0 // only movement after re-arming counts (no replaying the end of the last nod)
   }
 
   detectTurn(f, off)
-  detectEyes(f)
-  detectSwing(f)
-  setState(manual ? 'paused' : away ? away : !armed ? 'wait' : f.t < talkingUntil ? 'talking' : 'ready')
+  setState(manual ? 'paused' : away ? away : !armed ? 'wait' : 'ready')
 }
 
 // "Facing forward" is learned: quickly when a face first appears, then only slowly and only while you
@@ -337,51 +329,4 @@ function detectTurn(f: FaceFrame, off: number) {
   if (turnDone || wentFar || f.t - turnSince < HOLD_MS) return
   turnDone = true
   fire(turnDir > 0 ? 'right' : 'left', f)
-}
-
-// Nod = up-down swing of the head (pitch), shake = left-right (yaw), within WINDOW_MS, the other axis
-// steady. Swings = crossings of the middle of the recent range, counting only clear excursions to each
-// side, so jitter never counts and one turn (a single crossing) is never a shake.
-function detectSwing(f: FaceFrame) {
-  if (turnSince || f.t - seenSince < 2500 || history.length < 5) return
-  const swings = (key: 'yaw' | 'pitch', dead: number) => {
-    const v = history.map((h) => h[key])
-    const lo = Math.min(...v)
-    const hi = Math.max(...v)
-    const mid = (lo + hi) / 2
-    let turns = 0
-    let side = 0
-    for (const x of v) {
-      if (Math.abs(x - mid) < dead) continue
-      const sgn = Math.sign(x - mid)
-      if (side && sgn !== side) turns++
-      side = sgn
-    }
-    return { range: hi - lo, turns }
-  }
-  const p = swings('pitch', 3)
-  const y = swings('yaw', 4)
-  if (p.range > 10 && p.turns >= 2 && y.range < p.range * 0.6) fire('nod', f)
-  else if (y.range > 14 && y.turns >= 2 && p.range < y.range * 0.6) fire('shake', f)
-}
-
-// Eyes closed = both eyes shut for about a second. Far more reliable than a wink (and possible for people
-// who can't wink); an ordinary blink lasts a fraction of the hold, so it never counts. Once per closing.
-const CLOSED = 0.5
-export const CLOSE_MS = 900
-let closedSince = 0
-let closedDone = false
-const shut = (f: FaceFrame) => f.blink.l > CLOSED && f.blink.r > CLOSED
-// 0..1: how far through the hold you are (drives the setup's live meter).
-export const eyesClosedLevel = (f: FaceFrame) => (closedSince && shut(f) ? Math.min(1, (f.t - closedSince) / CLOSE_MS) : 0)
-function detectEyes(f: FaceFrame) {
-  if (!shut(f)) {
-    closedSince = 0
-    closedDone = false
-    return
-  }
-  closedSince ||= f.t
-  if (closedDone || f.t - closedSince < CLOSE_MS) return
-  closedDone = true
-  fire('eyes', f)
 }

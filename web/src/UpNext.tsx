@@ -6,7 +6,7 @@ import { upNext, type Listed } from './recommend'
 
 // End of an episode: "playing next", chosen from how the heart meter says you took the one you just
 // finished (more of what you liked, the opposite of what you didn't), with the reason in one line.
-// Nod plays it now; "Other picks" brings back a fresh lineup of random shows; Esc stays on this comic.
+// Turn right (yes) plays it now; left (no) or "Other picks" brings a fresh lineup; Esc stays on this comic.
 
 const COUNTDOWN_S = 8
 
@@ -41,7 +41,8 @@ export default function UpNext({ comicId, onStay }: { comicId: string; onStay: (
     const key = (e: KeyboardEvent) => e.key === 'Escape' && (e.stopPropagation(), onStay())
     window.addEventListener('keydown', key, true) // ahead of the finale's own Esc
     const off = onGesture((g) => {
-      if (g === 'nod') play(pick.show.id)
+      if (g === 'right') play(pick.show.id) // yes
+      else freshLineup(comicId) // no: three other shows
     })
     return () => {
       off()
@@ -85,7 +86,7 @@ export default function UpNext({ comicId, onStay }: { comicId: string; onStay: (
               Stay here
             </button>
           </div>
-          <p className="lineup-hint">Nod to play now</p>
+          <p className="lineup-hint">Turn right to play · Turn left for other picks</p>
         </div>
       </div>
     </div>
