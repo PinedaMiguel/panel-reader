@@ -278,26 +278,6 @@ export default function Reader({ comic, languages, translating, startAt, pageSiz
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Voice: say "stop"/"pause" or "play"/"resume". shortcut: Chrome/Edge/Safari only (Web Speech API), no Firefox.
-  useEffect(() => {
-    const SR = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition
-    if (!SR) return
-    const rec = new SR()
-    rec.continuous = true
-    let on = true
-    rec.onresult = (e: any) => {
-      const said = e.results[e.results.length - 1][0].transcript.toLowerCase()
-      if (/\b(stop|pause)\b/.test(said)) setPlaying(false)
-      else if (/\b(play|resume|start)\b/.test(said)) setPlaying(true)
-    }
-    rec.onend = () => on && rec.start() // the browser ends sessions on silence; keep listening
-    rec.start()
-    return () => {
-      on = false
-      rec.stop()
-    }
-  }, [])
-
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (settingsOpen || e.target instanceof HTMLInputElement || e.metaKey || e.ctrlKey || e.altKey) return
