@@ -31,6 +31,9 @@ def magi():
     return panels
 
 MEDIA = Path(__file__).parents[3] / "media"
+# Hand-marked panels (page SHA-256 → boxes in reading order) for pages Magi gets wrong, such as Little
+# Nemo's staggered 1905 layouts. They replace detection, and a stored page cut differently is redone.
+BOXES = {sha: v["panels"] for sha, v in json.loads((Path(__file__).parent / "panel_boxes.json").read_text()).items()}
 
 
 @dataclass
@@ -80,13 +83,21 @@ def run(job: Job, uploads: list[Upload], title: str, rtl: bool, audio: bool, tar
 
 
 def _run(job: Job, uploads: list[Upload], title: str, rtl: bool, audio: bool, target: dict | None) -> None:
-    hits = {u.sha: db.find_page(u.sha) for u in uploads}
     sources: dict[str, dict] = {}
 
     def source(cid: str) -> dict:
         if cid not in sources:
             sources[cid] = db.load_comic(cid, sign=False)
         return sources[cid]
+
+    def hit(sha: str) -> tuple[str, int] | None:
+        found = db.find_page(sha)
+        if found and sha in BOXES:
+            stored = [p["bbox"] for p in source(found[0])["pages"][found[1] - 1]["panels"]]
+            return found if stored == BOXES[sha] else None
+        return found
+
+    hits = {u.sha: hit(u.sha) for u in uploads}
 
     # Every page seen before, all from one comic: replay its stored results and open it. No API calls.
     if not target and all(hits.values()) and len({h[0] for h in hits.values()}) == 1:
@@ -227,7 +238,11 @@ def _run(job: Job, uploads: list[Upload], title: str, rtl: bool, audio: bool, ta
             cast_future = gem.submit(gemini.page_cast, u.path, known)
             tasks.append(io.submit(upload, f"{cid}/{u.path.name}"))
             page = Image.open(u.path).convert("RGB")
-            found = panels.detect(page, rtl=rtl) or [{"bbox": [0, 0, page.width, page.height], "characters": []}]
+            found = (
+                [{"bbox": b, "characters": []} for b in BOXES.get(u.sha, [])]
+                or panels.detect(page, rtl=rtl)
+                or [{"bbox": [0, 0, page.width, page.height], "characters": []}]
+            )
             page_entry = {"id": page_entry_id(pi), "image": f"{cid}/{u.path.name}", "hash": u.sha, "panels": []}
             crops = []
             for n, p in enumerate(found, 1):
