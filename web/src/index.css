@@ -1221,6 +1221,15 @@ body:has(.reader) .switch-legend, body:has(.welcome) .switch-legend, body:has(.l
 @keyframes bars2 { 0%, 34% { transform: scaleY(0.15); } 42% { transform: scaleY(0.5); } 50% { transform: scaleY(1); } 58% { transform: scaleY(0.6); } 66% { transform: scaleY(0.95); } 74% { transform: scaleY(0.4); } 82%, 100% { transform: scaleY(0.15); } }
 @keyframes bars3 { 0%, 34% { transform: scaleY(0.15); } 42% { transform: scaleY(1); } 50% { transform: scaleY(0.7); } 58% { transform: scaleY(0.35); } 66% { transform: scaleY(0.8); } 74% { transform: scaleY(1); } 82%, 100% { transform: scaleY(0.15); } }
 
+.demo-pause {
+  position: absolute; left: 50%; top: 50%; display: grid; place-items: center; width: 84px; height: 84px; border-radius: 50%;
+  background: rgb(0 0 0 / 0.8); border: 2px solid var(--accent); color: var(--fg); animation: pause-pop var(--cycle) infinite;
+}
+.demo-pause .icon { width: 40px; height: 40px; }
+.demo-up .demo-reading > img { animation: pause-dim var(--cycle) infinite; }
+@keyframes pause-pop { 0%, 30% { opacity: 0; transform: translate(-50%, -50%) scale(0.6); } 38%, 90% { opacity: 1; transform: translate(-50%, -50%); } 96%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(0.6); } }
+@keyframes pause-dim { 0%, 30% { opacity: 0.5; } 38%, 90% { opacity: 0.25; } 96%, 100% { opacity: 0.5; } }
+
 .demo-meter { display: flex; align-items: center; gap: 14px; width: 78%; color: #ff5a6e; }
 .demo-meter > .icon { width: 44px; height: 44px; flex: none; }
 .demo-bar { flex: 1; height: 16px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }

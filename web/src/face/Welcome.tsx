@@ -15,6 +15,7 @@ const STEPS: Step[] = [
   { id: 'right', act: 'right', title: 'Turn right = yes', line: 'Turn your head right to say yes: it picks the show.' },
   { id: 'left', act: 'left', title: 'Turn left = no', line: 'Turn your head left to say no: it skips to the next show.' },
   { id: 'eyes', act: 'eyes', title: 'Close your eyes', line: 'Close your eyes for a second to turn the narrator on or off while a comic plays.' },
+  { id: 'up', act: 'up', title: 'Look up = pause', line: 'Look up at the sky for a moment to pause a comic while it plays.' },
   { id: 'smile', act: 'smile', title: 'Just enjoy it', line: 'Your smiles fill a heart meter that picks what to read next. Nothing to do here.' },
   { id: 'ready', act: 'right', title: 'You’re set', line: 'Turn your head right to start reading.' },
 ]
@@ -255,6 +256,15 @@ function Demo({ id, covers }: { id: StepId; covers: string[] }) {
       {covers[k] && <img src={covers[k]} alt="" />}
     </span>
   )
+  if (id === 'up')
+    return (
+      <div className="demo-screen demo-reading">
+        {covers[0] && <img src={covers[0]} alt="" />}
+        <span className="demo-pause">
+          <Icon name="pause" />
+        </span>
+      </div>
+    )
   if (id === 'eyes')
     return (
       <div className="demo-screen demo-reading">
@@ -319,11 +329,12 @@ const PATHS = {
   right: 'M5 12h13m-5-6 6 6-6 6',
   left: 'M19 12H6m5-6-6 6 6 6',
   play: 'M8 5.5v13l11-6.5z',
+  pause: 'M7 5.5h3.5v13H7zM13.5 5.5H17v13h-3.5z',
   heart: 'M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z',
   speaker: 'M4 9.5h3.5L12 6v12l-4.5-3.5H4zM15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11',
 }
 function Icon({ name }: { name: keyof typeof PATHS }) {
-  const filled = name === 'play' || name === 'heart'
+  const filled = name === 'play' || name === 'pause' || name === 'heart'
   return (
     <svg
       viewBox="0 0 24 24"
