@@ -271,3 +271,62 @@ def preview(comic: dict) -> Preview:
         config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=Preview),
     )
     return resp.parsed
+
+
+class TrailerShot(BaseModel):
+    panel_id: str
+    voiceover: str | None  # the trailer narrator, said over this shot
+    line: TeaserLine | None  # or a character's own line of dialogue over this shot
+    card: str | None  # a short title card over this shot
+    hit: bool  # an impact sound on the cut into this shot
+
+
+class Trailer(BaseModel):
+    shots: list[TrailerShot]
+    tagline: str
+    music: str
+
+
+TRAILER_PROMPT = """You are cutting a movie-style TRAILER for a comic in a reading app. It plays before people choose
+what to read, so its only job is to make them want to read this one. Think real film trailer, not a summary.
+
+Return:
+- shots: 5-7 shots. Each is one panel id. Pick the most striking, exciting, funny or eerie panels from ANYWHERE in the
+  comic and order them for drama (set-up, escalation, a big moment), not in reading order; jumping between distant
+  panels is good. Never show or reveal the ending.
+  For each shot give at most one of:
+  - voiceover: the trailer narrator, 3-14 words, punchy, in the voice of a film trailer ("One rule.", "Nobody saw it
+    coming.", "This time, it's personal."). Speak to the viewer, build intrigue, sell the tone. You may start a line with
+    one ElevenLabs v3 audio tag such as [dramatic], [whispers], [excited] or [ominous]. 3-5 shots should have voiceover.
+    When the comic has little dialogue, carry it with voiceover.
+  - line: a gripping or funny line of the comic's own dialogue (panel id + line index) for a character moment. Use 1-2
+    if good ones exist, never on a shot that has voiceover.
+  - card: a 1-4 word title card in capitals ("ONE CONTEST.", "THIS NIGHT"), at most 2 in the trailer. Don't use the title.
+  hit: true on 1-3 shots that should land with an impact sound (a reveal, a punchline, a scare).
+- tagline: one short, memorable line shown under the title at the end (max 8 words).
+- music: a description for an instrumental trailer music bed of about 20 seconds that fits the genre and mood, building
+  to a peak (e.g. "tense orchestral horror trailer, low drones, heartbeat, rising strings, final boom"). No vocals.
+
+Genres and moods: {tags}
+
+Script (JSON):
+{script}
+"""
+
+
+def trailer(comic: dict, tags: list[str]) -> Trailer:
+    script = {
+        "title": comic["title"],
+        "characters": [{"id": c["id"], "name": c.get("name"), "description": c.get("description", "")} for c in comic["characters"]],
+        "panels": [
+            {"id": p["id"], "scene": p.get("scene", ""), "narration": p.get("narration") or "",
+             "lines": [{"i": i, "speaker": l.get("speaker"), "text": l["text"]} for i, l in enumerate(p.get("lines", []))]}
+            for page in comic["pages"] for p in page["panels"]
+        ],
+    }
+    resp = generate(
+        contents=TRAILER_PROMPT.format(tags=", ".join(tags) or "unknown", script=json.dumps(script, ensure_ascii=False)),
+        config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=Trailer),
+    )
+    return resp.parsed
+

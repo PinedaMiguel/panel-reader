@@ -40,6 +40,7 @@ SCHEMA = [
     "create index if not exists pages_hash on pages (hash)",
     # "What to watch next": spoiler-free synopsis, tags, teaser panels (written once by Gemini).
     "alter table comics add column if not exists preview jsonb",
+    "alter table comics add column if not exists trailer jsonb",
     """create table if not exists panels (
         comic_id text not null references comics(id) on delete cascade,
         id text not null,
@@ -247,6 +248,15 @@ def get_preview(cid: str) -> dict | None:
 
 def save_preview(cid: str, preview: dict) -> None:
     query("update comics set preview = $2::jsonb where id = $1", cid, json.dumps(preview, ensure_ascii=False))
+
+
+def get_trailer(cid: str) -> dict | None:
+    rows = query("select trailer from comics where id = $1", cid)
+    return rows[0]["trailer"] if rows else None
+
+
+def save_trailer(cid: str, trailer: dict) -> None:
+    query("update comics set trailer = $2::jsonb where id = $1", cid, json.dumps(trailer, ensure_ascii=False))
 
 
 def list_comics() -> list[dict]:

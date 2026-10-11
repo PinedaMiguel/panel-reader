@@ -246,7 +246,21 @@ def comic_preview(comic_id: str):
         "teaser": [{"image": p["image"]} for p in teaser],
         "teaserLine": line,
         "cover": comic["pages"][0]["panels"][0]["image"] if comic["pages"] else None,
+        "trailer": _signed_trailer(db.get_trailer(comic_id), panels_by_id),
     }
+
+
+def _signed_trailer(tr: dict | None, panels_by_id: dict) -> dict | None:
+    """The stored trailer (see trailer.py) with fresh links for its panels, voice, music and hits."""
+    if not tr:
+        return None
+    sign = lambda k: storage.presign(k) if k else None  # noqa: E731
+    shots = [
+        {**s, "image": panels_by_id[s["panel"]]["image"], "voice": sign(s["voice"]), "hit": sign(s["hit"]),
+         "line": s["line"] and {**s["line"], "audio": sign(s["line"]["audio"])}}
+        for s in tr["shots"] if s["panel"] in panels_by_id
+    ]
+    return {**tr, "music": sign(tr["music"]), "shots": shots}
 
 
 @app.get("/api/comics/{comic_id}")
