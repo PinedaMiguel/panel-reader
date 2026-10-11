@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import type { Calibration } from './face/engine'
 
 export type FontChoice = 'default' | 'atkinson' | 'opendyslexic'
 export type ColorMode = 'none' | 'protanopia' | 'deuteranopia' | 'tritanopia' | 'contrast' | 'grayscale'
@@ -13,6 +14,7 @@ export type Settings = {
   heart: boolean // camera: passive enjoyment meter while reading
   gaze: boolean // camera: hands-free control by head turns, nods and shakes
   onboarded: boolean // finished (or skipped) the first-visit face setup
+  calib: Calibration | null // gesture thresholds learned in the setup
 }
 
 // Face control (head gestures, with the heart meter) is the primary way in, set up on the first
@@ -27,6 +29,7 @@ export const DEFAULTS: Settings = {
   heart: true,
   gaze: true,
   onboarded: false,
+  calib: null,
 }
 
 const KEY = 'panel-reader-settings'

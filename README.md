@@ -26,7 +26,7 @@ Built at **KnightHacks IX** (UCF, October 2026).
 - **Audiobook mode** adds a narrator (a neural edge-tts voice in the reading language) who describes the setting, what happens, and each character's emotion and body language. It can be switched on or off at any moment: turning it off skips straight to the dialogue, and turning it on picks up from the next narration.
 
 ### Hands-free (face control)
-A guided setup teaches each gesture with an animated 3D guide, then the whole site works without touching anything. Face tracking runs on-device (MediaPipe Face Landmarker); no video leaves the browser.
+A guided setup teaches each gesture with an animated 3D guide and calibrates it: you hold each turn and the look-up until a bar fills, and how far you hold sets your own thresholds, so small movements count for people who can't turn far. Then the whole site works without touching anything. Face tracking runs on-device (MediaPipe Face Landmarker); no video leaves the browser.
 - **Turn right** = yes: press what's highlighted (Play, Watch). While a comic plays, the next panel.
 - **Turn left** = no: close or go back. While a comic plays, the previous panel.
 - **Close your eyes** for about a second: audiobook narrator on/off while a comic plays.

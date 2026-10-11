@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { controlState, onControlState, onGesture, pauseGestures, startFace, stopFace, toggleManualPause, type ControlState, type Gesture } from './engine'
+import { useSettings } from '../settings'
+import { calibrate, controlState, onControlState, onGesture, pauseGestures, startFace, stopFace, toggleManualPause, type ControlState, type Gesture } from './engine'
 
 // Hands-free control for the whole site, kept as simple as possible: turn your head right for yes (press
 // what's highlighted: Play, Watch...) and left for no (close, go back). While a comic plays, right and left
@@ -34,6 +35,8 @@ export default function SwitchLayer() {
   const [status, setStatus] = useState<'starting' | 'ready' | 'denied'>('starting')
   const [toast, setToast] = useState<string | null>(null)
   const [control, setControl] = useState<ControlState>(controlState)
+  const [{ calib }] = useSettings()
+  useEffect(() => calibrate(calib), [calib]) // thresholds from the setup, on every page
 
   // Hands-free control starting (end of setup, a page load): the nod that got you here doesn't count.
   useEffect(() => {

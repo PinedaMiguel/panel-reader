@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useSettings } from '../settings'
-import { cameraStream, onFrame, onGesture, pauseGestures, startFace, stopFace, eyesClosedLevel, type Gesture } from './engine'
+import { calibrate, calibrationNow, cameraStream, headOffset, onFrame, onGesture, pauseGestures, startFace, stopFace, eyesClosedLevel, thresholdFrom, type Gesture } from './engine'
 import FaceGuide, { CYCLE_S, type GuideAction } from './FaceGuide'
 import SwitchLayer from './SwitchLayer'
 
@@ -12,10 +12,10 @@ type StepId = 'hello' | Gesture | 'smile' | 'ready'
 type Step = { id: StepId; act: GuideAction; title: string; line: string }
 const STEPS: Step[] = [
   { id: 'hello', act: 'idle', title: 'Look at the camera', line: 'Look at the camera so it can see your face. Nothing is recorded.' },
-  { id: 'right', act: 'right', title: 'Turn right = yes', line: 'Turn your head right to say yes: it picks the show.' },
-  { id: 'left', act: 'left', title: 'Turn left = no', line: 'Turn your head left to say no: it skips to the next show.' },
+  { id: 'right', act: 'right', title: 'Turn right = yes', line: 'Turn your head right and hold it there until the bar fills. Turning right says yes: it picks the show.' },
+  { id: 'left', act: 'left', title: 'Turn left = no', line: 'Turn your head left and hold it there until the bar fills. Turning left says no: it skips to the next show.' },
   { id: 'eyes', act: 'eyes', title: 'Close your eyes', line: 'Close your eyes for a second to turn the narrator on or off while a comic plays.' },
-  { id: 'up', act: 'up', title: 'Look up = pause', line: 'Look up at the sky for a moment to pause a comic while it plays.' },
+  { id: 'up', act: 'up', title: 'Look up = pause', line: 'Look up at the sky and hold it there until the bar fills. Looking up pauses a comic while it plays.' },
   { id: 'smile', act: 'smile', title: 'Just enjoy it', line: 'Your smiles fill a heart meter that picks what to read next. Nothing to do here.' },
   { id: 'ready', act: 'right', title: 'You’re set', line: 'Turn your head right to start reading.' },
 ]
@@ -25,6 +25,13 @@ const DONE_MS = 1100 // success moment before the next step
 // Demo animation per step: yes picks a show (it opens), no skips it (it closes).
 const DEMO: Partial<Record<StepId, string>> = { right: 'yes', left: 'no', ready: 'yes' }
 const isGesture = (id: StepId): id is Gesture => id in GESTURE_NAME
+// Calibration: the turn and look-up steps ask you to hold the position, and how far you hold it sets your
+// thresholds (calibrate in the engine). Holding starts counting from a low bar, so small movers can do it.
+type CalId = 'right' | 'left' | 'up'
+const CAL_MS = 1500
+const CAL_FROM: Record<CalId, number> = { right: 10, left: 10, up: 12 }
+const isCal = (id: StepId): id is CalId => id in CAL_FROM
+const reach = (id: CalId) => (id === 'up' ? headOffset().pitch : id === 'right' ? headOffset().yaw : -headOffset().yaw)
 
 export default function Welcome() {
   const [, set] = useSettings()
@@ -34,7 +41,7 @@ export default function Welcome() {
   const [success, setSuccess] = useState(false)
   const [miss, setMiss] = useState<string | null>(null)
   const [covers, setCovers] = useState<string[]>([])
-  const [closed, setClosed] = useState(0) // live: how far through the eyes-closed hold, 1 = done
+  const [held, setHeld] = useState(0) // live: how far through the current hold (eyes closed, a turn), 1 = done
   const video = useRef<HTMLVideoElement>(null)
   const step = STEPS[i]
   const go = (to: number) => {
@@ -118,9 +125,29 @@ export default function Welcome() {
 
   useEffect(() => {
     let since = 0
+    let holdSince = 0
+    let samples: number[] = []
     const off = onFrame((f) => {
       setFace(f.found)
-      if (step.id === 'eyes' && f.found) setClosed(eyesClosedLevel(f))
+      if (step.id === 'eyes' && f.found) setHeld(eyesClosedLevel(f))
+      const id = step.id
+      if (isCal(id) && !success) {
+        const a = f.found ? reach(id) : 0
+        if (a < CAL_FROM[id]) {
+          holdSince = 0
+          samples = []
+          return setHeld(0)
+        }
+        holdSince ||= f.t
+        samples.push(a)
+        const k = Math.min(1, (f.t - holdSince) / CAL_MS)
+        setHeld(k)
+        if (k < 1) return
+        calibrate({ ...calibrationNow(), [id]: thresholdFrom(samples, id === 'up') })
+        set({ calib: calibrationNow() })
+        setSuccess(true)
+        return
+      }
       if (step.id !== 'hello') return
       if (!f.found) since = 0
       else if (!since) since = f.t
@@ -130,14 +157,14 @@ export default function Welcome() {
       off()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step.id])
+  }, [step.id, success])
 
   // Practice: the right gesture celebrates and moves on; anything else says what it saw.
   useEffect(() => {
     if (!isGesture(step.id) || success) return
     let hide = 0
     const off = onGesture((g) => {
-      if (g === step.id) return setSuccess(true)
+      if (g === step.id) return isCal(g) || setSuccess(true) // held steps succeed when the hold is done
       setMiss(`That was ${GESTURE_NAME[g]}. Try ${GESTURE_NAME[step.id as Gesture]}.`)
       clearTimeout(hide)
       hide = window.setTimeout(() => setMiss(null), 2000)
@@ -220,9 +247,9 @@ export default function Welcome() {
           {step.id === 'hello' && camera === 'denied' && (
             <p className="welcome-warn">The camera is blocked. Allow it, or use mouse &amp; keyboard.</p>
           )}
-          {step.id === 'eyes' && !success && (
-            <span className={`hold-meter${closed >= 1 ? ' hit' : ''}`} role="meter" aria-label="Eyes closed" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(closed * 100)}>
-              <span style={{ transform: `scaleX(${closed})` }} />
+          {(step.id === 'eyes' || isCal(step.id)) && !success && (
+            <span className={`hold-meter${held >= 1 ? ' hit' : ''}`} role="meter" aria-label={step.id === 'eyes' ? 'Eyes closed' : 'Hold'} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(held * 100)}>
+              <span style={{ transform: `scaleX(${held})` }} />
             </span>
           )}
           {miss && <p className="welcome-miss">{miss}</p>}

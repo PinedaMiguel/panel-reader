@@ -199,10 +199,26 @@ let backSince = 0
 let lostSince = 0
 let farSince = 0
 let state: ControlState = 'wait'
+let lastOff = 0 // latest head turn from rest, degrees (+ = right)
+// Per-user thresholds, learned in the setup from how far you hold each turn (see calibrate).
+let need = { right: TURN_DEG, left: TURN_DEG, up: 20 }
 let lastT = 0 // time of the latest frame, so pauses line up with the frames they apply to
 const stateListeners = new Set<(s: ControlState) => void>()
 
 export const controlState = () => state
+export const calibrationNow = () => need
+export const headOffset = () => ({ yaw: lastOff, pitch: lastUpOff })
+// Set the thresholds to a share of how far this user held each direction in the setup, so a small turn
+// (limited movement, a camera off to one side) still counts and a big turner doesn't fire on a glance.
+export type Calibration = { right: number; left: number; up: number }
+export const calibrate = (c: Calibration | null) => {
+  need = c ?? { right: TURN_DEG, left: TURN_DEG, up: 20 }
+}
+const clamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x))
+export function thresholdFrom(held: number[], up = false) {
+  const s = [...held].map(Math.abs).sort((a, b) => a - b)
+  return clamp(0.6 * (s[s.length >> 1] ?? 0), up ? 12 : 10, up ? 28 : 24) // under AWAY_DEG, over jitter
+}
 export function onControlState(fn: (s: ControlState) => void) {
   stateListeners.add(fn)
   return () => stateListeners.delete(fn)
@@ -251,6 +267,7 @@ function detectGestures(f: FaceFrame) {
   history.push(f)
   while (history.length && f.t - history[0].t > WINDOW_MS) history.shift()
   const off = learnRest(f)
+  lastOff = off
   // Still = the last ARM_MS (fully covered by frames) moved less than STILL_DEG on both axes.
   const win = recent(f, ARM_MS)
   const still = win.length >= 3 && f.t - win[0].t >= ARM_MS - 100 && spread(win, 'yaw') < STILL_DEG && spread(win, 'pitch') < STILL_DEG
@@ -321,7 +338,7 @@ let turnDir = 0
 let turnEnded = 0
 function detectTurn(f: FaceFrame, off: number) {
   const a = Math.abs(off)
-  if (a < TURN_DEG) {
+  if (a < (off > 0 ? need.right : need.left)) {
     if (turnSince && !turnDone && wentFar && f.t - turnSince < AWAY_MS) fire(turnDir > 0 ? 'right' : 'left', f)
     if (turnSince) turnEnded = f.t
     turnSince = 0
@@ -358,19 +375,20 @@ function detectEyes(f: FaceFrame) {
   fire('eyes', f)
 }
 
-// Look up = head tilted up past UP_DEG from where you normally hold it, held UP_MS: pause while reading.
+// Look up = head tilted up past need.up (20° until calibrated) from where you normally hold it, held UP_MS: pause while reading.
 // Held, so a nod (a quick up-down swing) never counts. Once per tilt. "Level" is learned slowly while the
 // head is near it, since camera height decides the resting pitch.
-const UP_DEG = 20
 const UP_MS = 500
 let restPitch: number | null = null
+let lastUpOff = 0
 let upSince = 0
 let upDone = false
 function detectUp(f: FaceFrame) {
   if (restPitch === null || f.t - seenSince < 1500) restPitch = f.pitch
   const off = f.pitch - restPitch
-  if (Math.abs(off) < UP_DEG / 2) restPitch += off * 0.01
-  if (off < UP_DEG) {
+  lastUpOff = off
+  if (Math.abs(off) < 10) restPitch += off * 0.01
+  if (off < need.up) {
     upSince = 0
     upDone = false
     return
