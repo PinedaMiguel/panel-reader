@@ -1,35 +1,18 @@
 import { useEffect, useState, type CSSProperties } from 'react'
-import Lineup, { LINEUP_SEEN } from './Lineup'
 import Preview from './Preview'
 import { loadHearts } from './face/heart'
 import { tone, type Listed } from './recommend'
-import { useSettings } from './settings'
 
 export type ProcessJob = { id: string; files: File[]; title: string }
 
-// Home: just the shows, like a TV app. Nothing to search, scroll or aim at: turn your head to move between
+// The gallery (/gallery): every show, like a TV app's library. Only reachable by typing the address; the
+// start page is the lineup. Nothing to search, scroll or aim at: turn your head to move between
 // covers, nod to open one. The processing visualization ("How it was read") is owned by App, so it can
 // stay on screen while the reader mounts under it.
 export default function Home({ onProcess }: { onProcess: (job: ProcessJob) => void }) {
   const [comics, setComics] = useState<Listed[] | null>(null)
   const [previewing, setPreviewing] = useState<Listed | null>(null)
   const [blurb, setBlurb] = useState<{ id: string; synopsis: string; minutes: number } | null>(null)
-  const [settings] = useSettings()
-  const [lineup, setLineup] = useState(() => {
-    try {
-      return !sessionStorage.getItem(LINEUP_SEEN)
-    } catch {
-      return false
-    }
-  })
-  const closeLineup = () => {
-    try {
-      sessionStorage.setItem(LINEUP_SEEN, '1')
-    } catch {
-      // storage blocked: fine, it's closed for now
-    }
-    setLineup(false)
-  }
 
   useEffect(() => {
     fetch('/api/comics')
@@ -183,7 +166,6 @@ export default function Home({ onProcess }: { onProcess: (job: ProcessJob) => vo
           Other classic comics are public domain.
         </footer>
       </main>
-      {lineup && settings.onboarded && list.length > 0 && <Lineup comics={list} onDone={closeLineup} />}
       {previewing && (
         <Preview
           id={previewing.id}

@@ -1358,3 +1358,5 @@ body:has(.reader) .switch-legend, body:has(.welcome) .switch-legend, body:has(.l
 .switch-state.away span, .switch-state.others span, .switch-state.paused span { background: #ff6b6b; }
 .switch-state.away, .switch-state.others, .switch-state.paused { border-color: #ff6b6b; }
 body:has(.lineup) .switch-state { bottom: 70px; }
+
+.start { min-height: 100svh; background: #000; }

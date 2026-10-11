@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { onGesture, pauseGestures } from './face/engine'
 import { useHeart } from './face/heart'
 import { useSettings } from './settings'
@@ -6,47 +6,37 @@ import Teaser, { teaserMs, type TeaserData } from './Teaser'
 
 // The startup lineup, Netflix style: three random shows, each previewed in turn. Nod to watch the one
 // on screen; leave it and the next preview starts. After all three, the one whose teaser your heart meter
-// liked most plays next, after a short countdown. Turn = next/previous, shake = browse everything instead.
+// liked most plays next, after a short countdown. Turn = next/previous. A shake does nothing here.
 
 export type LineupShow = { id: string; title: string; cover?: string | null }
 type Data = TeaserData & { synopsis: string; genres: string[]; moods: string[]; minutes: number }
 
 const COUNTDOWN_S = 6
-export const LINEUP_SEEN = 'panel-reader-lineup-seen'
-const LINEUP_SKIP = 'panel-reader-lineup-skip'
+export const LINEUP_SKIP = 'panel-reader-lineup-skip'
 
-// Back to the home page with a fresh lineup (new random shows, leaving out `skip`).
+// Back to the start page with a fresh lineup (new random shows, leaving out `skip`).
 export function freshLineup(skip: string) {
   try {
-    sessionStorage.removeItem(LINEUP_SEEN)
     sessionStorage.setItem(LINEUP_SKIP, skip)
   } catch {
-    // storage blocked: home without the lineup
+    // storage blocked: the new lineup may include it
   }
-  location.assign('./')
+  location.assign('/')
 }
 
 const shuffle = <T,>(a: T[]) => a.map((x) => [Math.random(), x] as const).sort((p, q) => p[0] - q[0]).map(([, x]) => x)
-export const play = (id: string) => {
-  try {
-    sessionStorage.setItem(LINEUP_SEEN, '1')
-  } catch {
-    // storage blocked: the lineup just shows again next time
-  }
-  location.assign(`?id=${id}`)
-}
+export const play = (id: string) => location.assign(`/?id=${id}`)
 
-export default function Lineup({ comics, onDone }: { comics: LineupShow[]; onDone: () => void }) {
+// The lineup is the start page: it never leads to the gallery (/gallery, typed by hand). Esc or
+// "Other picks" deal three new random shows instead (`onOther` gets the ones just shown, to skip).
+export default function Lineup({ comics, skip = [], onOther }: { comics: LineupShow[]; skip?: string[]; onOther: (shown: string[]) => void }) {
   const [settings] = useSettings()
-  const picks = useMemo(() => {
-    let skip: string | null = null
-    try {
-      skip = sessionStorage.getItem(LINEUP_SKIP)
-    } catch {
-      // no storage: nothing to skip
-    }
-    return shuffle(comics.filter((c) => c.cover && c.id !== skip)).slice(0, 3)
-  }, [comics])
+  // Dealt once per lineup: a refetched comics list must not reshuffle what's on screen.
+  const [picks] = useState(() => {
+    const fresh = comics.filter((c) => c.cover && !skip.includes(c.id))
+    return shuffle(fresh.length >= 3 ? fresh : comics.filter((c) => c.cover)).slice(0, 3)
+  })
+  const other = () => onOther(picks.map((p) => p.id))
   const [data, setData] = useState<Record<string, Data>>({})
   const [i, setI] = useState(0)
   const [scores, setScores] = useState<Record<string, number>>({})
@@ -95,14 +85,13 @@ export default function Lineup({ comics, onDone }: { comics: LineupShow[]; onDon
 
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onDone()
+      if (e.key === 'Escape') other()
       else if (e.key === 'ArrowRight' && !counting) go(i + 1)
       else if (e.key === 'ArrowLeft') go(counting ? picks.length - 1 : i - 1)
     }
     window.addEventListener('keydown', key)
     const off = onGesture((g) => {
       if (g === 'nod') play((winner ?? show).id)
-      else if (g === 'shake') onDone()
       else if (g === 'right' && !counting) go(i + 1)
       else if (g === 'left') go(counting ? picks.length - 1 : i - 1)
     })
@@ -143,11 +132,11 @@ export default function Lineup({ comics, onDone }: { comics: LineupShow[]; onDon
               <button type="button" className="btn btn-accent btn-lg" autoFocus onClick={() => play(winner.id)}>
                 ▶ Play now
               </button>
-              <button type="button" className="btn btn-lg btn-ghost" onClick={onDone}>
-                Browse instead
+              <button type="button" className="btn btn-lg btn-ghost" onClick={other}>
+                Other picks
               </button>
             </div>
-            <p className="lineup-hint">Nod to play now · Shake to browse</p>
+            <p className="lineup-hint">Nod to play now</p>
           </div>
         </div>
       </div>
@@ -167,8 +156,8 @@ export default function Lineup({ comics, onDone }: { comics: LineupShow[]; onDon
             </li>
           ))}
         </ol>
-        <button type="button" className="welcome-fallback" onClick={onDone}>
-          Browse all
+        <button type="button" className="welcome-fallback" onClick={other}>
+          Other picks
         </button>
       </header>
 
@@ -194,7 +183,7 @@ export default function Lineup({ comics, onDone }: { comics: LineupShow[]; onDon
             Next preview
           </button>
         </div>
-        <p className="lineup-hint">Nod to watch · Turn for the next one · Shake to browse</p>
+        <p className="lineup-hint">Nod to watch · Turn for the next one</p>
       </div>
 
       <footer className="lineup-bottom">

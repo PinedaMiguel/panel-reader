@@ -277,4 +277,10 @@ def list_comics():
 # proxy). Registered last, so every /api route above wins. In development Vite serves the app instead.
 WEB_DIST = Path(os.environ.get("WEB_DIST", Path(__file__).parents[3] / "web" / "dist"))
 if WEB_DIST.is_dir():
+    from fastapi.responses import FileResponse
+
+    @app.get("/gallery")
+    def gallery():
+        return FileResponse(WEB_DIST / "index.html")  # the app's gallery page (client-side route)
+
     app.mount("/", StaticFiles(directory=WEB_DIST, html=True), name="web")

@@ -6,6 +6,7 @@ import FaceDebug from './face/FaceDebug'
 import SwitchLayer from './face/SwitchLayer'
 import Welcome from './face/Welcome'
 import Reader from './Reader'
+import Start from './Start'
 import { useSettings } from './settings'
 import type { Comic } from './types'
 
@@ -14,7 +15,8 @@ import type { Comic } from './types'
 // neither        → home (upload, scan, shelf)
 const parse = () => {
   const p = new URLSearchParams(location.search)
-  return { id: p.get('id'), folder: p.get('comic') }
+  // /gallery: every show (only by typing it). Anywhere else without a comic: the lineup start page.
+  return { id: p.get('id'), folder: p.get('comic'), gallery: /\/gallery\/?$/.test(location.pathname) }
 }
 
 export default function App() {
@@ -62,7 +64,7 @@ export default function App() {
     history.pushState(null, '', `?id=${c.id}`)
     setHandoff({ comic: c, start, sizes, live })
     setComic(c)
-    setRoute({ id: c.id, folder: null })
+    setRoute({ id: c.id, folder: null, gallery: false })
   }
 
   useEffect(() => {
@@ -134,7 +136,7 @@ export default function App() {
   )
 
   let page
-  if (!id && !folder) page = <Home onProcess={(job) => setProcessing({ job, leaving: false })} />
+  if (!id && !folder) page = route.gallery ? <Home onProcess={(job) => setProcessing({ job, leaving: false })} /> : <Start />
   else if (error) page = <p className="status">Could not load comic: {error}</p>
   else if (!comic) page = <p className="status">Loading…</p>
   else
