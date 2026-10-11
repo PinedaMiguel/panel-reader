@@ -117,7 +117,7 @@ export default function SwitchLayer() {
         </p>
       )}
       <p className="switch-legend" aria-hidden="true">
-        <b>Turn right</b> yes · <b>Turn left</b> no
+        <b>Turn right</b> yes · <b>Turn left</b> no · <b>Look up</b> pause
       </p>
     </div>
   )
