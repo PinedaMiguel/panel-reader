@@ -218,7 +218,7 @@ export default function Welcome() {
         style={{ '--cycle': `${CYCLE_S}s` } as CSSProperties}
       >
         <header className="welcome-top">
-          <span className="welcome-kicker">Panel Reader</span>
+          <span className="welcome-kicker">Nod &amp; Read</span>
           <ol className="welcome-steps" aria-label={`Step ${i + 1} of ${STEPS.length}`}>
             {STEPS.map((s, k) => (
               <li key={s.id} className={k < i ? 'done' : k === i ? 'now' : ''} />

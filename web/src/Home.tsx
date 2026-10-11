@@ -90,7 +90,7 @@ export default function Home({ onProcess }: { onProcess: (job: ProcessJob) => vo
   return (
     <div className="app">
       <header className="appbar">
-        <span className="wordmark">Panel Reader</span>
+        <span className="wordmark">Nod &amp; Read</span>
       </header>
 
       {featured && (

@@ -1,4 +1,4 @@
-# Panel Reader, reading-only: build the web app, then run the API (which serves it) without the panel
+# Nod & Read, reading-only: build the web app, then run the API (which serves it) without the panel
 # model (MAGI=off) and without model keys. New comics are added from a machine with Magi installed.
 
 FROM node:22-slim AS web

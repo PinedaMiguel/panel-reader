@@ -18,7 +18,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import db, gemini, pipeline, storage
 
-app = FastAPI(title="Panel Reader API")
+app = FastAPI(title="Nod & Read API")
 pipeline.MEDIA.mkdir(exist_ok=True)
 jobs: dict[str, pipeline.Job] = {}
 
